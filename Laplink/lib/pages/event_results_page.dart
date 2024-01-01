@@ -13,7 +13,6 @@ class EventResultsPage extends StatefulWidget {
 
 class _EventResultsPageState extends State<EventResultsPage> {
   late Future<dynamic> _futureResults;
-  // Seznam záložek (fází závodu)
   final List<String> _tabs = ["Trénink", "Kvalifikace", "Závod"];
   String? _currentUser;
 
@@ -24,7 +23,6 @@ class _EventResultsPageState extends State<EventResultsPage> {
     _loadCurrentUser();
   }
 
-  // Načte web_user ze SharedPreferences
   Future<void> _loadCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -32,7 +30,6 @@ class _EventResultsPageState extends State<EventResultsPage> {
     });
   }
 
-  /// Metoda pro obnovu výsledků (reload)
   Future<void> _reloadResults() async {
     setState(() {
       _futureResults = ApiClient().getAllEventResults(widget.eventId);
@@ -40,22 +37,17 @@ class _EventResultsPageState extends State<EventResultsPage> {
     await _futureResults;
   }
 
-  /// Metoda, která z dat vyfiltruje a vykreslí výsledky pro danou fázi.
   Widget buildResultsForPhase(String phaseName, List data) {
     List<Widget> categoryWidgets = [];
 
-    // Pro každou kategorii
     for (var category in data) {
-      // Získáme seznam fází – pokud není seznam, použijeme prázdný seznam.
       List phases = category['phases'] is List ? category['phases'] : [];
-      // Vyfiltrujeme pouze ty fáze, jejichž název odpovídá aktuálně zvolené záložce.
       var matchingPhases =
           phases.where((phase) => phase['phase_name'] == phaseName).toList();
 
       if (matchingPhases.isNotEmpty) {
         List<Widget> phaseWidgets = [];
         for (var phase in matchingPhases) {
-          // Získáme výsledky; pokud nejsou seznam, použijeme prázdný seznam.
           List results = phase['results'] is List ? phase['results'] : [];
 
           Widget dataTable = FittedBox(
@@ -162,7 +154,6 @@ class _EventResultsPageState extends State<EventResultsPage> {
           );
         }
 
-        // Vykreslíme kartu s výsledky pro danou kategorii.
         categoryWidgets.add(
           Card(
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -191,7 +182,6 @@ class _EventResultsPageState extends State<EventResultsPage> {
       }
     }
 
-    // Vytvoříme obsah, který bude vždy obalený scrollovatelným widgetem
     Widget content;
     if (categoryWidgets.isEmpty) {
       content = Center(
@@ -234,7 +224,6 @@ class _EventResultsPageState extends State<EventResultsPage> {
           future: _futureResults,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              // Pro RefreshIndicator je potřeba scrollovatelný widget
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
@@ -287,7 +276,6 @@ class _EventResultsPageState extends State<EventResultsPage> {
             }
 
             final data = snapshot.data;
-            // Očekáváme, že data jsou seznam kategorií.
             if (data is! List) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -307,8 +295,6 @@ class _EventResultsPageState extends State<EventResultsPage> {
 
             return TabBarView(
               children: _tabs.map((phaseName) {
-                // Obalíme obsah každé záložky RefreshIndicator-em,
-                // který při "pull-to-refresh" zavolá _reloadResults.
                 return RefreshIndicator(
                   onRefresh: _reloadResults,
                   child: buildResultsForPhase(phaseName, data),

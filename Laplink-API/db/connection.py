@@ -3,26 +3,24 @@ from dotenv import load_dotenv
 import mysql.connector.pooling
 import queue
 
-# Načtení prostředí
 load_dotenv('.env.local')
 
-# Připojovací údaje pro MySQL databázi
+
 db_config = {
     'host': os.getenv("DB_HOST"),
     'user': os.getenv("DB_USER"),
     'password': os.getenv("DB_PASSWORD"),
     'database': os.getenv("DB_DATABASE"),
-    'port': os.getenv("DB_PORT", 3306),  # Standardní port je 3306
+    'port': os.getenv("DB_PORT", 3306),
 }
 
 # Vytvoření connection poolu
 connection_pool = mysql.connector.pooling.MySQLConnectionPool(
     pool_name="laplink_pool",
-    pool_size=10,  # Maximální počet připojení v poolu, lze upravit dle potřeby
+    pool_size=10,
     **db_config
 )
 
-# Fronty pro prioritizaci požadavků
 high_priority_queue = queue.Queue()
 low_priority_queue = queue.Queue()
 
@@ -40,20 +38,19 @@ def prioritized_get_db_connection(priority="low"):
     Získá připojení z poolu s prioritizací požadavků.
     """
     if priority == "high":
-        high_priority_queue.put(None)  # Přidá požadavek do fronty vysoké priority
+        high_priority_queue.put(None)
     else:
-        low_priority_queue.put(None)  # Přidá požadavek do fronty nízké priority
+        low_priority_queue.put(None)
 
     while not high_priority_queue.empty() or not low_priority_queue.empty():
         try:
             if not high_priority_queue.empty():
-                high_priority_queue.get()  # Zpracuj požadavek vysoké priority
+                high_priority_queue.get()
                 return get_db_connection()
             elif not low_priority_queue.empty():
-                low_priority_queue.get()  # Zpracuj požadavek nízké priority
+                low_priority_queue.get()
                 return get_db_connection()
         except mysql.connector.pooling.PoolError:
-            # Pokud není k dispozici žádné spojení, pokračuj čekáním
             pass
 
     raise Exception("Všechna připojení jsou momentálně obsazena. Zkuste to prosím později.")

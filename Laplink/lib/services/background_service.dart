@@ -67,9 +67,8 @@ class BackgroundService {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              // Lottie spinner nahrazuje CircularProgressIndicator
               Lottie.asset(
-                'assets/loading.json', // Cesta k tvé Lottie animaci
+                'assets/loading.json',
                 width: 150,
                 height: 150,
                 fit: BoxFit.contain,

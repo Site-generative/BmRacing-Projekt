@@ -32,7 +32,7 @@ class ResultsPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          automaticallyImplyLeading: true, // Bez šipky zpět
+          automaticallyImplyLeading: true,
           backgroundColor: Theme.of(context).colorScheme.tertiary,
           title: Text(
             'Detaily závodu',
@@ -61,7 +61,6 @@ class ResultsPage extends StatelessWidget {
           future: _getRaceDetails(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              // Zobrazení Lottie animace místo CircularProgressIndicator
               return Center(
                 child: Lottie.asset(
                   'assets/loading.json',
@@ -101,7 +100,6 @@ class ResultsPage extends StatelessWidget {
           raceDetails['web_user'], raceId, phaseId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Zobrazení Lottie animace místo CircularProgressIndicator
           return Center(
             child: Lottie.asset(
               'assets/loading.json',

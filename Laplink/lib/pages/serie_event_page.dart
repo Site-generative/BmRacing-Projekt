@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Stránka se seznamem sérií a závodů
 class SerieEventPage extends StatefulWidget {
   final bool isPersonal;
 
@@ -19,7 +18,6 @@ class SerieEventPage extends StatefulWidget {
 
 class _SerieEventPageState extends State<SerieEventPage> {
   late Future<List<Series>> _futureSeries;
-  // ID aktuálně rozbalené série; pokud je null, žádná není rozbalena.
   int? _expandedSeriesId;
   String? _webUser = '';
 
@@ -36,7 +34,6 @@ class _SerieEventPageState extends State<SerieEventPage> {
     List<dynamic> data;
 
     if (widget.isPersonal) {
-      // Získání hodnoty web_user ze SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       _webUser = prefs.getString('web_user');
       if (_webUser == null) {
@@ -47,7 +44,6 @@ class _SerieEventPageState extends State<SerieEventPage> {
       data = await apiClient.getAllSeriesRaces();
     }
 
-    // Seskupení dat podle series_id
     final Map<int, Series> seriesMap = {};
     for (var item in data) {
       final seriesId = item['series_id'] as int;
@@ -86,7 +82,6 @@ class _SerieEventPageState extends State<SerieEventPage> {
         future: _futureSeries,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // Použití Lottie načítací animace
             return Center(
               child: Lottie.asset(
                 'assets/loading.json',
@@ -129,7 +124,6 @@ class _SerieEventPageState extends State<SerieEventPage> {
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      // Hlavní řádek pro sérii
                       InkWell(
                         onTap: () {
                           setState(() {
@@ -145,7 +139,6 @@ class _SerieEventPageState extends State<SerieEventPage> {
                           ),
                           child: Row(
                             children: [
-                              // Levá strana: název série a rok na oddělených řádcích
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,14 +161,12 @@ class _SerieEventPageState extends State<SerieEventPage> {
                                   ],
                                 ),
                               ),
-                              // Skupina tlačítek: "Zobrazit Výsledky" a šipka pro rozbalení
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (!widget.isPersonal)
                                     TextButton(
                                       onPressed: () {
-                                        // Navigace na stránku s výsledky série.
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -214,7 +205,6 @@ class _SerieEventPageState extends State<SerieEventPage> {
                           ),
                         ),
                       ),
-                      // Rozbalovací část se závody
                       AnimatedCrossFade(
                         firstChild: Container(),
                         secondChild: Container(
@@ -262,7 +252,6 @@ class _SerieEventPageState extends State<SerieEventPage> {
                                     ),
                                     trailing: TextButton(
                                       onPressed: () {
-                                        // Navigace na stránku s výsledky daného závodu
                                         if (widget.isPersonal) {
                                           Navigator.push(
                                             context,
@@ -348,3 +337,4 @@ class RaceEvent {
     required this.location,
   });
 }
+//Třídy Series a RaceEvent byly vytvořeny a implementovány za pomocí chatGPT

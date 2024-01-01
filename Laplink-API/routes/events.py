@@ -20,7 +20,6 @@ job_last_update = {}
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Inicializace plánovače
 scheduler = BackgroundScheduler()
 
 class EventUpdateRequest(BaseModel):
@@ -52,7 +51,6 @@ async def all_races(api_key: APIKey = Depends(auth.get_api_key)):
         cursor.execute(command)
         races = cursor.fetchall()
 
-        # Převod date na řetězec
         for race in races:
             if race['date']:
                 race['date'] = race['date'].strftime('%Y-%m-%d')
@@ -84,7 +82,6 @@ async def get_event_detail(id: int, api_key: APIKey = Depends(auth.get_api_key))
         if not race:
             raise HTTPException(status_code=404, detail="Závod nenalezen")
 
-        # Převod date na řetězec
         if race['date']:
             race['date'] = race['date'].strftime('%Y-%m-%d')
         return JSONResponse(content={"data": race})
@@ -146,14 +143,12 @@ async def update_event(
 
     try:
         print("Id 1:", id)
-        # Načtení aktuálního event_phase_id
         cursor.execute("SELECT event_phase_id FROM event WHERE id = %s", (id,))
         current_event = cursor.fetchone()
         if not current_event:
             raise HTTPException(status_code=404, detail="Závod nenalezen")
         old_phase_id = current_event["event_phase_id"]
         print("Id 2:", id)
-        # Provedení update eventu
         try:
             command = """
                         UPDATE event
@@ -184,15 +179,12 @@ async def update_event(
             db_connection.rollback()
             raise HTTPException(status_code=533, detail=f"Error updating event -asfdjasdashd: {e}")
 
-        # Kontrola, zda se změnil event_phase_id
         if old_phase_id != event_data.event_phase_id:
-            # Odstranění starého jobu, pokud existuje (bez ohledu na novou fázi)
             old_job_id = f"interim_results_event_{id}_phase_{old_phase_id}"
             if scheduler.get_job(old_job_id):
                 scheduler.remove_job(old_job_id)
                 logger.info(f"Odstraněn starý job: {old_job_id}")
 
-            # Spustit job jen pokud je nová fáze aktivní (tj. 1,2,3)
             if event_data.event_phase_id in [1, 2, 3]:
                 new_job_id = f"interim_results_event_{id}_phase_{event_data.event_phase_id}"
                 if not scheduler.running:
@@ -250,29 +242,22 @@ def update_interim_results(event_id: int, event_phase_id: int):
     db_connection = prioritized_get_db_connection(priority="high")
     cursor = db_connection.cursor()
     try:
-        # Volání uložené procedury, která aktualizuje výsledky
         cursor.callproc("UpdateActiveEventPhaseResults", (event_id, event_phase_id))
         db_connection.commit()
 
-        # Předpokládáme, že cursor.rowcount vrací počet řádků, které se změnily.
         rows_updated = cursor.rowcount
         logger.info(f"Interim results updated for event_id={event_id}, event_phase_id={event_phase_id}, rows_updated={rows_updated}")
 
         now = datetime.now()
         if rows_updated > 0:
-            # Pokud došlo ke změně, ulož aktuální čas
             job_last_update[job_id] = now
         else:
-            # Pokud ještě nemáme uložený čas, nastavíme ho na aktuální (aby se nevyvolalo přerušení hned)
             last_update = job_last_update.get(job_id, now)
-            # Pokud uběhlo více než 1,5 hodiny od poslední změny, vypneme job a přepneme fázi závodu
             if now - last_update > timedelta(hours=1, minutes=30):
-                # Odstranění jobu, pokud stále běží
                 if scheduler.get_job(job_id):
                     scheduler.remove_job(job_id)
                     logger.info(f"Job {job_id} removed due to 1.5 hours of inactivity")
 
-                # Přepnutí závodu do fáze 5
                 try:
                     upd_conn = prioritized_get_db_connection(priority="high")
                     upd_cursor = upd_conn.cursor()

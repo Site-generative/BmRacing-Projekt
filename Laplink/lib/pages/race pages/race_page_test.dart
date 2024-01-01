@@ -13,6 +13,9 @@ import 'package:bm_racing_app/components/stat_card.dart';
 import 'package:bm_racing_app/services/background_service.dart';
 import 'package:bm_racing_app/components/lap_time_table.dart';
 
+//Toto je testovací stránka, která sloužila pro prvotní testování funkcí a logiky fáze závod.
+//Není implementovaná do hlavní aplikace.
+
 class RacePageTest extends StatefulWidget {
   const RacePageTest({
     super.key,

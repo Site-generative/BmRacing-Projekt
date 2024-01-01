@@ -1,5 +1,7 @@
 import 'dart:math';
 
+//Třídu pomohlo implementovat chatGPT. A.I. pomohlo hlavně při matematických operacích a výsledném ladění parametrů.
+
 class SimpleKalmanFilter2D {
   final List<double> _state = [0.0, 0.0, 0.0, 0.0];
 
@@ -62,7 +64,6 @@ class SimpleKalmanFilter2D {
   void update(double latMeas, double lonMeas,
       {double? speed, double? heading}) {
     if (speed != null && heading != null) {
-      // Převod měřené rychlosti a směru na složky rychlosti v [deg/s].
       final double latRad = latMeas * pi / 180;
       final double mPerDegLat = 111320.0;
       final double mPerDegLon = 111320.0 * cos(latRad);
@@ -140,7 +141,6 @@ class SimpleKalmanFilter2D {
     }
   }
 
-  /// Jednotné volání predict a update – volitelně se předá i rychlost a heading.
   List<double> filter(double latMeas, double lonMeas, double dt,
       {double? speed, double? heading}) {
     predict(dt);
@@ -242,7 +242,6 @@ class SimpleKalmanFilter2D {
     ];
   }
 
-  /// implementace inverze 4×4 matice pomocí Gaussovy eliminace.
   List<List<double>> _matrixInverse4x4(List<List<double>> m) {
     int n = 4;
     // matice [m|I]
@@ -253,7 +252,6 @@ class SimpleKalmanFilter2D {
       }
       aug[i][n + i] = 1.0;
     }
-    // Gaussova eliminace
     for (int i = 0; i < n; i++) {
       double pivot = aug[i][i];
       if (pivot.abs() < 1e-12) {

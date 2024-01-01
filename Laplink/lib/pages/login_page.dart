@@ -27,9 +27,6 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _checkForSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
 
-    //await prefs.setString('web_user', 'dominik');
-    //await prefs.setString('web_password', 'vins');
-
     final webUser = prefs.getString('web_user');
     final webPassword = prefs.getString('web_password');
 

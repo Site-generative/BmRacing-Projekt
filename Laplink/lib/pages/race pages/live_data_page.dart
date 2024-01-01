@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
+//TATO STRÁNKA BYLA VYGENEROVANÁ POMOCÍ chatGPT a mého původního kódu. Stránka se používá jako ukázková pro zobrazení
+//živých dat z RaceBoxu. Tato stránka není součástí projektu a není nikde zobrazovaná
+
 class LiveDataPage extends StatefulWidget {
   final BluetoothDevice device;
   final BluetoothCharacteristic characteristic;

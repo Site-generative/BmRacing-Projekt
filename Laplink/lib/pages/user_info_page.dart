@@ -53,7 +53,6 @@ class _UserInfoPageState extends State<UserInfoPage> {
     }
   }
 
-  /// Vrací iniciály uživatele (např. "DV" pro Dominik Vinš)
   String _getInitials() {
     if (_userInfo == null) return "";
     String firstName = _userInfo!['name'] ?? "";
@@ -64,7 +63,6 @@ class _UserInfoPageState extends State<UserInfoPage> {
     return initials.toUpperCase();
   }
 
-  /// Formátuje datum narození ve tvaru DD.MM.YYYY
   String _formatBirthDate(String rawDate) {
     if (rawDate.isEmpty) return 'N/A';
     try {
@@ -74,7 +72,7 @@ class _UserInfoPageState extends State<UserInfoPage> {
       final year = date.year.toString();
       return '$day.$month.$year';
     } catch (_) {
-      return rawDate; // pokud formát nelze převést, vrátí původní hodnotu
+      return rawDate;
     }
   }
 
@@ -104,7 +102,6 @@ class _UserInfoPageState extends State<UserInfoPage> {
 
   Widget _buildBody(BuildContext context) {
     if (_isLoading) {
-      // Místo CircularProgressIndicator se zde zobrazí Lottie animace.
       return Center(
         child: Lottie.asset(
           'assets/loading.json',
@@ -151,7 +148,6 @@ class _UserInfoPageState extends State<UserInfoPage> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Profilová hlavička s pozadím podle primární barvy
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -198,7 +194,6 @@ class _UserInfoPageState extends State<UserInfoPage> {
             ),
           ),
           const SizedBox(height: 20),
-          // Karta s podrobnými informacemi
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Card(
@@ -227,7 +222,6 @@ class _UserInfoPageState extends State<UserInfoPage> {
                     const Divider(),
                     _buildInfoTile("Uživatelské jméno", webUser),
                     const Divider(),
-                    // Řádek pro heslo s tlačítkem pro zobrazení/skrývání
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(

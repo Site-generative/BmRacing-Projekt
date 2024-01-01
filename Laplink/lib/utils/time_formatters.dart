@@ -2,8 +2,7 @@ class TimeFormatters {
   static String formattedStopwatchTime(Stopwatch stopwatch) {
     final int minutes = stopwatch.elapsed.inMinutes;
     final int seconds = stopwatch.elapsed.inSeconds % 60;
-    final int milliseconds = (stopwatch.elapsedMilliseconds % 1000) ~/
-        10; // Správné 2 desetinná místa
+    final int milliseconds = (stopwatch.elapsedMilliseconds % 1000) ~/ 10;
 
     return '${minutes.toString().padLeft(2, '0')}:'
         '${seconds.toString().padLeft(2, '0')}.'
@@ -18,10 +17,8 @@ class TimeFormatters {
   static String formatLapTimeToTable(double lapTime) {
     final minutes = (lapTime ~/ 60).toString().padLeft(2, '0');
     final seconds = (lapTime % 60).toInt().toString().padLeft(2, '0');
-    final milliseconds = ((lapTime * 100) % 100)
-        .toInt()
-        .toString()
-        .padLeft(2, '0'); // Oprava na 2 desetinná místa
+    final milliseconds =
+        ((lapTime * 100) % 100).toInt().toString().padLeft(2, '0');
 
     return '$minutes:$seconds.$milliseconds';
   }

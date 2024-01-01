@@ -8,7 +8,7 @@ def format_timedelta(delta):
         hours, remainder = divmod(total_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{hours:02}:{minutes:02}:{seconds:02}"
-    return delta  # Pokud není timedelta, vrátí původní hodnotu
+    return delta
 
 def get_formated_event_driver_event_results(row):
     return {

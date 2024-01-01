@@ -90,7 +90,6 @@ async def get_car_configurations(api_key: APIKey = Depends(auth.get_api_key)):
     try:
         cursor.execute("SELECT * FROM car_configuration")
         car_configurations = cursor.fetchall()
-        # Převod Decimal na float
         formatted_car_configurations = [
             {key: float(value) if isinstance(value, decimal.Decimal) else value for key, value in row.items()}
             for row in car_configurations
@@ -114,7 +113,6 @@ async def get_car_configuration(id: int, api_key: APIKey = Depends(auth.get_api_
         cursor.execute("SELECT * FROM car_configuration WHERE id = %s", (id,))
         car_configuration = cursor.fetchone()
         if car_configuration:
-            # Převod Decimal na float
             formatted_car_configuration = {key: float(value) if isinstance(value, decimal.Decimal) else value for key, value in car_configuration.items()}
             return JSONResponse(content={"data": formatted_car_configuration})
         else:

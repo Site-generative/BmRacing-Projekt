@@ -34,8 +34,6 @@ class RacePage extends StatefulWidget {
 
 class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
   // ------------------------------------------------------
-  // Proměnné
-  // ------------------------------------------------------
   List<int> buffer = [];
 
   double currentSpeed = 0.0;
@@ -82,7 +80,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
   late BackgroundService _backgroundService;
   final StatCard statCard = StatCard();
 
-  // Držíme si minulou GPS pozici pro lineární interpolaci
   double? _lastLat;
   double? _lastLon;
   DateTime? _lastGnssTime;
@@ -108,14 +105,13 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     _initializeRaceData();
     _listenToCharacteristic();
 
-    // Zobrazení dialogu "kalibrace"
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _backgroundService.showCalibrationDialog();
     });
 
     // Poslech na příchozí BLE data
     _bufferSubscription = _bufferStreamController.stream.listen((data) {
-      buffer.addAll(data as Uint8List);
+      buffer.addAll(data);
       _processData();
     });
 
@@ -127,9 +123,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     });
   }
 
-  // ------------------------------------------------------
-  // Lifecycle & notifikace
-  // ------------------------------------------------------
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
@@ -149,9 +142,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // ------------------------------------------------------
-  // Inicializace závodu
-  // ------------------------------------------------------
   Future<void> _initializeRaceData() async {
     setState(() {
       isLoading = true;
@@ -192,7 +182,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     }
   }
 
-  // Příznak ukončení závodu na serveru
   Future<void> _markRaceAsCompleted(int raceId, bool dnf) async {
     try {
       final ApiClient apiClient = ApiClient();
@@ -207,9 +196,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     }
   }
 
-  // ------------------------------------------------------
-  // BLE
-  // ------------------------------------------------------
   void _listenToCharacteristic() {
     widget.characteristic.setNotifyValue(true).then((_) {
       widget.characteristic.lastValueStream.listen((value) {
@@ -260,25 +246,18 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     return ckA == packet[packet.length - 2] && ckB == packet[packet.length - 1];
   }
 
-  // ------------------------------------------------------
-  //  Dekódování (lineární interpolace + segment check)
-  // ------------------------------------------------------
   void _decodePacket(Uint8List payload) {
     if (raceEnded || payload.isEmpty) return;
 
-    // 1) Čtení fix
     int fixStatus = payload[20]; // 0=no,2=2D,3=3D
     int fixFlags = payload[21]; // bit 0 = valid fix
     bool fixOk = (fixStatus == 3) && ((fixFlags & 0x01) != 0);
 
-    // 2) Poloha
     double newLon = _getInt32(payload, 24) / 1e7;
     double newLat = _getInt32(payload, 28) / 1e7;
 
-    // Baterie
     int currentBatteryLevel = payload[67] & 0x7F;
 
-    // Kalibrace
     if (isCalibrating && fixOk && (newLat != 0.0 || newLon != 0.0)) {
       isCalibrating = false;
       Navigator.of(context).pop();
@@ -291,7 +270,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
       currentLongitude = newLon;
       currentTime = DateTime.now().toIso8601String();
 
-      // Baterie => dnf?
       if (currentBatteryLevel == 0) {
         _showMessage('Baterie je na 0%. Zařízení bude odpojeno.');
         Fluttertoast.showToast(
@@ -307,12 +285,10 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
         return;
       }
 
-      // Když fix není ok, ignorujeme
       if (!fixOk) {
         return;
       }
 
-      // 3) Zkusíme spočítat crossing
       if (_lastLat != null && _lastLon != null) {
         double sidePrev = _sideOfLine(_lastLat!, _lastLon!, startLineP1[0],
             startLineP1[1], startLineP2[0], startLineP2[1]);
@@ -323,15 +299,7 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
             (sidePrev > 0 && sideCurr < 0) || (sidePrev < 0 && sideCurr > 0);
 
         if (signChanged && !lock && !isCalibrating) {
-          // 4) alpha => lineární interpolace
           double alpha = sidePrev.abs() / (sidePrev.abs() + sideCurr.abs());
-
-          // (Pro plnou robustnost bychom měli i GNSS time – offset 4..16,
-          //  ale tady zůstaneme u stopek, jak to máte nastavené.)
-          // Můžeme reálně se držet stopek, nebo zkusit "přesný crossing time".
-          // Zde ponecháme stopwatch styl, abychom zachovali logiku vaší app.
-
-          // 5) Vypočítáme "bod crossing" v lat/lon
           double oldLat = _lastLat!;
           double oldLon = _lastLon!;
           double latDelta = newLat - oldLat;
@@ -340,8 +308,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
           double crossingLat = oldLat + alpha * latDelta;
           double crossingLon = oldLon + alpha * lonDelta;
 
-          // 6) Zjistíme, zda crossing leží na segmentu startLineP1->startLineP2
-          //    => spočteme param u
           double? u = _computeSegmentParam(
             startLineP1[0],
             startLineP1[1],
@@ -375,11 +341,7 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     });
   }
 
-  // ------------------------------------------------------
-  // Registrace kola + stopek
-  // ------------------------------------------------------
   void _registerLap() async {
-    // Tady se držíme původního stylu => stopek
     stopwatch.stop();
     double lapTime = stopwatch.elapsedMilliseconds / 1000.0;
 
@@ -419,21 +381,16 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
       ..start();
   }
 
-  // ------------------------------------------------------
-  // Konec závodu
-  // ------------------------------------------------------
   void _endRace() async {
     raceEnded = true;
     stopwatch.stop();
 
-    // Součet kol
     double totalRaceTime = lapTimes.fold(0, (a, b) => a + b);
 
     final isDisc = await _disconnectDevice();
     await _backgroundService.disableBackgroundExecution();
 
     if (isDisc) {
-      // Stav závodu na serveru
       await _markRaceAsCompleted(eventId, dnf);
 
       if (dnf) {
@@ -472,10 +429,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     _registerLap();
   }
 
-  // ------------------------------------------------------
-  // Výpočet parametru "u" => jestli crossing bod leží
-  // v segmentu startLineP1->startLineP2
-  // ------------------------------------------------------
   double? _computeSegmentParam(
     double x1lat,
     double x1lon,
@@ -497,18 +450,12 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     return param;
   }
 
-  // ------------------------------------------------------
-  // sideOfLine
-  // ------------------------------------------------------
   double _sideOfLine(double lat, double lon, double x1lat, double x1lon,
       double x2lat, double x2lon) {
     // cross = (x2lat - x1lat)*(lon - x1lon) - (x2lon - x1lon)*(lat - x1lat)
     return (x2lat - x1lat) * (lon - x1lon) - (x2lon - x1lon) * (lat - x1lat);
   }
 
-  // ------------------------------------------------------
-  // Pomocné funkce
-  // ------------------------------------------------------
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -639,9 +586,6 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
             : Colors.green;
   }
 
-  // ------------------------------------------------------
-  // BUILD
-  // ------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

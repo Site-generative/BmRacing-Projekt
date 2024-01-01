@@ -4,7 +4,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 
-/// Enum pro úrovně varování o stavu baterie
 enum LevelOfDanger { warning, danger }
 
 class BatteryHelper {
@@ -15,13 +14,12 @@ class BatteryHelper {
 
   Future<void> processBatteryData(Uint8List value,
       Function(int) onBatteryLevelUpdated, bool canShowToast) async {
-    // Zajistíme, že data mají dostatečnou délku
     if (value.length > 67) {
       int rawBatteryData = value[67];
       int batteryLevel = (rawBatteryData & 0x7F);
 
-      this.batteryLevel = batteryLevel; // Aktualizace interního stavu
-      onBatteryLevelUpdated(batteryLevel); // Callback pro UI
+      this.batteryLevel = batteryLevel;
+      onBatteryLevelUpdated(batteryLevel);
 
       if (canShowToast) {
         checkAndShowBatteryWarnings(batteryLevel);
@@ -33,10 +31,6 @@ class BatteryHelper {
   }
 
   IconData getBatteryIcon(int batteryLevel, bool isCharging) {
-    /*if (isCharging) {
-      return Icons.battery_charging_full;
-    }*/
-    // Jinak vyber ikonu podle stavu kapacity
     if (batteryLevel >= 95) {
       return Icons.battery_full;
     } else if (batteryLevel >= 80) {

@@ -6,17 +6,13 @@ from db.connection import prioritized_get_db_connection
 import logging
 import service.auth as auth
 
-# Inicializace loggeru
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Inicializace plánovače
 scheduler = BackgroundScheduler()
 
-# FastAPI aplikace
 app = FastAPI()
 
-# API router
 router = APIRouter()
 
 # Funkce pro aktualizaci průběžných výsledků
@@ -74,7 +70,7 @@ async def stop_event_update(
     logger.info(f"Stopped job for event_id={event_id}, event_phase_id={event_phase_id}")
     return {"status": "success", "message": f"Update stopped for event_id={event_id}, event_phase_id={event_phase_id}"}
 
-# Endpoint pro ruční spuštění aktualizace
+# Endpoint pro ruční spuštění aktualizace -> pro normální použití není potřeba, slouží spíš v případě chyby
 @router.post("/manual-update-event-results", response_model=dict)
 async def manual_update_event_results(
     event_id: int,
@@ -87,5 +83,4 @@ async def manual_update_event_results(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# Přidání routeru do aplikace
 app.include_router(router)

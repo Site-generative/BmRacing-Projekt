@@ -10,14 +10,6 @@ import 'package:bm_racing_app/pages/race%20pages/training_qualification_page.dar
 import 'package:bm_racing_app/pages/race%20pages/race_page.dart';
 import 'package:lottie/lottie.dart';
 
-/// Dialog (popup), který se pokusí automaticky připojit
-/// k uloženému RaceBoxu pro daný raceId.
-///
-/// Chování:
-/// - Pokud se auto-connect povede, rovnou otevře TrainingQualificationPage nebo RacePage
-///   podle uloženého `event_phase_id`.
-/// - Pokud se nepodaří, nebo uživatel zruší, dialog se zavře s výsledkem "cancel"/"error",
-///   a volající kód (typicky v MenuRacePage) potom přejde do RaceStartPage.
 class AutoConnectPopup extends StatefulWidget {
   const AutoConnectPopup({Key? key}) : super(key: key);
 
@@ -29,20 +21,15 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
   final bm_racing_appBluetoothService bluetoothService =
       bm_racing_appBluetoothService();
 
-  bool _autoConnectStarted = false; // aby se auto-connect volal jen jednou
-  bool _isConnecting = false; // probíhá scanning + connect
-  bool _completed = false; // zda už jsme dialog zavřeli
+  bool _autoConnectStarted = false;
+  bool _isConnecting = false;
+  bool _completed = false;
 
   @override
   void initState() {
     super.initState();
   }
 
-  /// Spustí automatické připojení:
-  /// 1) ověří, zda je last_connected_race_id == widget.raceId a existuje last_connected_device_id
-  /// 2) pokud ano -> scanForDevices() -> connectToDevice()
-  /// 3) pokud se povede -> otevře příslušnou RacePage
-  /// 4) jinak popne dialog s "cancel"/"error"
   Future<void> _startAutoConnect() async {
     setState(() {
       _isConnecting = true;
@@ -55,14 +42,12 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
       final raceId = prefs.getInt('race_id');
       final eventPhaseId = prefs.getInt('event_phase_id') ?? -1;
 
-      // Ověříme, zda je pro STEJNÝ race a máme deviceId
       if (lastDeviceId == null || lastRaceId != raceId) {
         // Nesedí => zrušíme (uživatel musí ručně)
         _maybePop("cancel");
         return;
       }
 
-      // Zkusíme naskenovat
       final foundDevices = await bluetoothService.scanForDevices();
       final matchingDevices = foundDevices
           .where((d) => d.remoteId.toString() == lastDeviceId)
@@ -83,7 +68,6 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
         return;
       }
 
-      // OK, máme connectedDevice + characteristic => jdeme do závodní stránky
       Future.delayed(
         const Duration(seconds: 2),
         () =>
@@ -99,8 +83,6 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
     }
   }
 
-  /// Otevře příslušnou stránku (TrainingQualificationPage / RacePage)
-  /// a zavře dialog s "success".
   void _navigateToPhaseAndPop(
     BluetoothDevice device,
     BluetoothCharacteristic characteristic,
@@ -126,10 +108,8 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
         targetPage = const RaceStartPage();
     }
 
-    // Zavřeme dialog s "success"
     _maybePop("success");
 
-    // A poté otevřeme RacePage / QualiPage => pushReplacement
     Future.microtask(() {
       Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => targetPage),
@@ -137,7 +117,6 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
     });
   }
 
-  /// Bezpečné zavření dialogu, pokud ještě nebyl zavřen
   void _maybePop(String result) {
     if (_completed) return;
     _completed = true;
@@ -148,7 +127,6 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
 
   @override
   Widget build(BuildContext context) {
-    // Po prvním buildu (zobrazení) spustíme auto-connect
     if (!_autoConnectStarted) {
       _autoConnectStarted = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -157,7 +135,6 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
     }
 
     return PopScope(
-      // Zachytíme tlačítko zpět na telefonu => "cancel"
       canPop: true,
       child: AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -193,7 +170,7 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
               const SizedBox(height: 16),
               if (_isConnecting)
                 Lottie.asset(
-                  'assets/loading.json', // Cesta k vašemu Lottie souboru
+                  'assets/loading.json',
                   width: 150,
                   height: 150,
                   fit: BoxFit.contain,
@@ -208,7 +185,6 @@ class _AutoConnectPopupState extends State<AutoConnectPopup> {
               final prefs = await PreferencesService.getPreferences();
               await prefs.remove('last_connected_device_id');
               await prefs.remove('last_connected_race_id');
-              // Poté zavoláme _maybePop("cancel")
               _maybePop("cancel");
             },
             child: const Text("Vybrat jiný"),

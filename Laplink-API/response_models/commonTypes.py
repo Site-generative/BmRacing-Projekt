@@ -78,11 +78,10 @@ class LapData(BaseModel):
     time: int = Field(..., example=45)
     laps: int = Field(..., example=3)
     speed: int = Field(..., example=120)
-
 class RaceEvent(BaseModel):
     name: str = Field(..., example="Brno GP")
     description: str = Field(..., example="Nejlepší závod roku")
-    date_time: str = Field(..., example="2024-08-01T15:00:00") # ISO 8601 (Rok, Měsíc, Den, Hodiny, Minuty, Sekundy, Milisekundy)
+    date_time: str = Field(..., example="2024-08-01T15:00:00")
     address: str = Field(..., example="Masarykův okruh")
     laps: int = Field(..., example=3)
     is_open: bool = Field(..., example=True)
@@ -112,14 +111,13 @@ class DriverUpdate(BaseModel):
     email: str = Field(..., example="johndoe@gmail.com")
     number: str = Field(..., example="31")
     racebox_id: Optional[int] = Field(..., example=0)
+
 class RacerResult(BaseModel):
     driver_id: int
     event_id: int
     time: str
     avg_speed: str
     max_speed: str
-
-# Nové
 class CarCategory(BaseModel):
     name: str
     description: Optional[str] = None

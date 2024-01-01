@@ -5,12 +5,10 @@ import 'package:bm_racing_app/pages/login_page.dart';
 import 'package:bm_racing_app/models/race_state.dart';
 import 'package:bm_racing_app/provider/theme_provider.dart';
 
-// Globální RouteObserver, který se využije pro sledování změn tras (navigace)
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Povolení pouze svislé orientace
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
@@ -34,7 +32,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'BM Racing App',
-      navigatorObservers: [routeObserver], // Přidání RouteObserver
+      navigatorObservers: [routeObserver],
       themeMode: themeProvider.themeMode,
       theme: ThemeData(
         brightness: Brightness.light,

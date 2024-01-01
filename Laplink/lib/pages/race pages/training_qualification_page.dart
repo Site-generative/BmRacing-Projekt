@@ -35,9 +35,6 @@ class TrainingQualificationPage extends StatefulWidget {
 
 class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     with WidgetsBindingObserver {
-  // --------------------------------------------------
-  //  Hlavní proměnné
-  // --------------------------------------------------
   List<int> buffer = [];
   String currentTime = '';
   int completedLaps = 0;
@@ -77,7 +74,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
   int? batteryLevel = 69;
   bool isBatteryLevelKnown = false;
 
-  // Pro lineární interpolaci + fix
   double? _lastLat;
   double? _lastLon;
   DateTime? _lastGnssTime;
@@ -103,12 +99,10 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     _initializeRaceData();
     _listenToCharacteristic();
 
-    // Po zobrazení => ukážeme kalibrační dialog
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _backgroundService.showCalibrationDialog();
     });
 
-    // Příjem BLE => buffering
     _bufferSubscription = _bufferStreamController.stream.listen((data) {
       buffer.addAll(data as Uint8List);
       _processData();
@@ -133,9 +127,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     super.dispose();
   }
 
-  // --------------------------------------------------
-  //  Inicializace závodu
-  // --------------------------------------------------
   Future<void> _initializeRaceData() async {
     KeepScreenOn.turnOn();
 
@@ -164,8 +155,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     } catch (error) {
       _showMessage('Error při načítání informací o závodě: $error');
     }
-
-    // Případně config RaceBox - vynechán pro stručnost
   }
 
   List<double> _parseCoordinate(String coordinate) {
@@ -191,9 +180,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     prefs.remove('laps_on_tires_$eventId');
   }
 
-  // --------------------------------------------------
-  //  BLE - poslech
-  // --------------------------------------------------
   void _listenToCharacteristic() {
     widget.characteristic.setNotifyValue(true).then((_) {
       widget.characteristic.lastValueStream.listen((value) {
@@ -208,9 +194,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     });
   }
 
-  // --------------------------------------------------
-  //  Zpracování UBX packetu
-  // --------------------------------------------------
   void _processData() {
     if (raceEnded || buffer.length < 8) return;
 
@@ -248,11 +231,7 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     return ckA == packet[packet.length - 2] && ckB == packet[packet.length - 1];
   }
 
-  // --------------------------------------------------
-  //  Dekódování + lineární interpolace
-  // --------------------------------------------------
   void _decodePacket(Uint8List payload) {
-    // 1) Přečteme polohu, fix atd. (vynecháme nedůležité řádky pro stručnost)
     int fixStatus = payload[20];
     int fixFlags = payload[21];
     bool fixOk = (fixStatus == 3) && ((fixFlags & 0x01) != 0);
@@ -263,7 +242,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     double newLon = _getInt32(payload, 24) / 1e7;
     double newLat = _getInt32(payload, 28) / 1e7;
 
-    // GNSS time
     int year = _getUint16(payload, 4);
     int month = payload[6];
     int day = payload[7];
@@ -275,34 +253,28 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     DateTime? newGnssTime =
         _buildGnssTime(year, month, day, hour, minute, second, nanoSec);
 
-    // Baterie
     int currentBatteryLevel = payload[67] & 0x7F;
 
     setState(() {
-      // Uložíme pro UI
       batteryLevel = currentBatteryLevel;
       isBatteryLevelKnown = true;
       currentLatitude = newLat;
       currentLongitude = newLon;
       currentTime = DateTime.now().toIso8601String();
 
-      // Kalibrace
       if (isCalibrating && fixOk && (newLat != 0.0 || newLon != 0.0)) {
         isCalibrating = false;
         Navigator.of(context).pop();
       }
 
-      // Zkontrolujeme fix
       if (!fixOk || horizAccM > 3.0) {
-        return; // ignorovat
+        return;
       }
 
       if (_lastLat != null &&
           _lastLon != null &&
           _lastGnssTime != null &&
           newGnssTime != null) {
-        // 2) Ověříme crossing se sign-of-line, ALE navíc zkontrolujeme,
-        //    zda průsečík leží v "omezené" části startLine (nikoli na nekonečné přímce).
         double sidePrev = sideOfLine(_lastLat!, _lastLon!, startLineP1[0],
             startLineP1[1], startLineP2[0], startLineP2[1]);
         double sideCurr = sideOfLine(newLat, newLon, startLineP1[0],
@@ -311,31 +283,19 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
         bool signChanged =
             (sidePrev > 0 && sideCurr < 0) || (sidePrev < 0 && sideCurr > 0);
         if (signChanged && !lock && !isCalibrating) {
-          // 3) Najdeme param 'alpha' => kde mezi starou a novou polohou k průsečíku došlo
           double alpha = sidePrev.abs() / (sidePrev.abs() + sideCurr.abs());
           Duration dt = newGnssTime.difference(_lastGnssTime!);
           double crossingSec = _lastGnssTime!.millisecondsSinceEpoch / 1000.0 +
               alpha * (dt.inMilliseconds / 1000.0);
 
-          // 4) SPOČTEME reálnou polohu crossingPoint => abychom ověřili, že leží v segmentu startLine
-          //    K tomu použijeme lineIntersectionSegment => vrátí param u, jestli je v [0..1].
-          //    A param t pro "naší dráhu" je alpha => jestli je v [0..1], OK.
-          //    Ale u = param, jestli crossing v segmentu startLineP1->startLineP2.
-
-          // Convert lat/lon do "2D" = klidně jen lat/lon, malé chyby nevadí
-          // p0 = _lastLat/lon, p1 = newLat/lon
-          // s0 = startLineP1, s1 = startLineP2
           final double oldLat = _lastLat!;
           final double oldLon = _lastLon!;
           final double latDelta = newLat - oldLat;
           final double lonDelta = newLon - oldLon;
 
-          // Bod crossing v lat/lon
           final double crossingLat = oldLat + alpha * latDelta;
           final double crossingLon = oldLon + alpha * lonDelta;
 
-          // Ověříme, zda crossingLat/Lon leží "v úseku" startLineP1 -> startLineP2
-          // Budeme dělat tzv. param pro lineSegment. (s0 -> s1)
           double? u = _computeSegmentParam(
             startLineP1[0],
             startLineP1[1],
@@ -344,10 +304,8 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
             crossingLat,
             crossingLon,
           );
-          // Pokud je u v [0..1], je to v segmentu
 
           if (u != null && u >= 0.0 && u <= 1.0) {
-            // => reálný crossing uvnitř modré zóny
             lock = true;
 
             if (!raceStarted) {
@@ -370,14 +328,12 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
         }
       }
 
-      // Uložíme new => last
       _lastLat = newLat;
       _lastLon = newLon;
       if (newGnssTime != null) {
         _lastGnssTime = newGnssTime;
       }
 
-      // Baterie=0 => konec
       if (currentBatteryLevel == 0) {
         _showMessage('Baterie je na 0%. Zařízení bude odpojeno.');
         Fluttertoast.showToast(
@@ -393,9 +349,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     });
   }
 
-  // --------------------------------------------------
-  //  Registrace kola
-  // --------------------------------------------------
   void registerLapWithTime(double lapTime) async {
     if (lapTime > 0.0) {
       if (fastestLap == null || lapTime < fastestLap!) {
@@ -428,10 +381,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     completedLaps++;
   }
 
-  // --------------------------------------------------
-  //  Pomocná funkce: zjištění param. u => jestli crossing
-  //  leží v segmentu startLineP1->startLineP2
-  // --------------------------------------------------
   double? _computeSegmentParam(
     double x1lat,
     double x1lon,
@@ -440,13 +389,10 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     double px,
     double py,
   ) {
-    // budeme se držet lineárního parametru:
-    // param = ((Px - X1) dot (X2 - X1)) / |X2-X1|^2
-    // v lat/lon rovině
     final double dx = x2lat - x1lat;
     final double dy = x2lon - x1lon;
     final double denom = dx * dx + dy * dy;
-    if (denom == 0.0) return null; // degenerate line
+    if (denom == 0.0) return null;
 
     final double pxRel = px - x1lat;
     final double pyRel = py - x1lon;
@@ -456,9 +402,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     return param;
   }
 
-  // --------------------------------------------------
-  //  Konec závodu
-  // --------------------------------------------------
   void _endRace() async {
     raceEnded = true;
     final isDisconnected = await _disconnectDevice();
@@ -504,9 +447,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     }
   }
 
-  // --------------------------------------------------
-  //  Pomocné funkce
-  // --------------------------------------------------
   DateTime? _buildGnssTime(int year, int month, int day, int hour, int minute,
       int second, int nano) {
     if (year < 1970 || month < 1 || day < 1) {
@@ -617,9 +557,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
     );
   }
 
-  // --------------------------------------------------
-  //  BUILD
-  // --------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -685,7 +622,6 @@ class _TrainingQualificationPageState extends State<TrainingQualificationPage>
             child: Column(
               children: [
                 const SizedBox(height: 24),
-                // Stopky v UI (pouze pro orientaci jezdce)
                 Text(
                   TimeFormatters.formattedStopwatchTime(stopwatch),
                   style: TextStyle(

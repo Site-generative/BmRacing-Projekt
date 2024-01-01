@@ -108,7 +108,6 @@ async def get_event_registrations(event_id: int, api_key: APIKey = Depends(auth.
         cursor.execute(query, (event_id,))
         event_registrations = cursor.fetchall()
 
-        # **Konverze Decimal hodnot na float**
         for reg in event_registrations:
             if isinstance(reg.get("power_weight_ratio"), Decimal):
                 reg["power_weight_ratio"] = float(reg["power_weight_ratio"])

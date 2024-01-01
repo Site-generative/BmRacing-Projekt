@@ -158,7 +158,6 @@ async def get_app_event_results(event_id: int, api_key: APIKey = Depends(auth.ge
         if not result:
             return []
 
-        # Seskupení
         grouped_results = {}
         for row in result:
             car_category = row["car_category_id"]
@@ -183,7 +182,6 @@ async def get_app_event_results(event_id: int, api_key: APIKey = Depends(auth.ge
                 "web_user": row["web_user"],
             })
 
-        # Transformace do listů pro Pydantic model
         data = []
         for car_category_id, category_data in sorted(grouped_results.items()):
             phases_list = []
@@ -296,7 +294,6 @@ async def get_detailed_driver_rankings(series_id: int, api_key: APIKey = Depends
     cursor = db_connection.cursor(dictionary=True)
 
     try:
-        # Získání všech bodů podle jezdců, včetně kategorie + její ID
         query = """
             SELECT 
                 d.id AS driver_id,
@@ -319,7 +316,6 @@ async def get_detailed_driver_rankings(series_id: int, api_key: APIKey = Depends
         if not drivers:
             raise HTTPException(status_code=404, detail="No driver rankings found for this series")
 
-        # Pro každého řidiče získáme detailní body ze závodů
         for driver in drivers:
             driver_id = driver["driver_id"]
 
@@ -340,13 +336,10 @@ async def get_detailed_driver_rankings(series_id: int, api_key: APIKey = Depends
             cursor.execute(query_race_results, (driver_id, series_id))
             race_results = cursor.fetchall()
 
-            # Přidání závodů do odpovědi + převod Decimal na int
             driver["races"] = {race["event_name"]: int(race["points"]) for race in race_results}
 
-            # Přepočítání total_points jako součet všech bodů ze závodů + převod na int
             driver["total_points"] = int(sum(driver["races"].values()))
 
-        # Seskupení podle kategorie vozidel
         grouped_drivers = defaultdict(list)
         category_order = {}
 
@@ -354,16 +347,13 @@ async def get_detailed_driver_rankings(series_id: int, api_key: APIKey = Depends
             category = driver["category"]
             category_id = driver["category_id"]
             grouped_drivers[category].append(driver)
-            category_order[category] = category_id  # Uložíme ID kategorie
+            category_order[category] = category_id
 
-        # Seřazení jezdců v každé kategorii podle total_points (nejvyšší nahoře)
         for category in grouped_drivers:
             grouped_drivers[category] = sorted(grouped_drivers[category], key=lambda x: x["total_points"], reverse=True)
 
-        # Seřazení skupin podle jejich ID
         sorted_categories = sorted(grouped_drivers.keys(), key=lambda cat: category_order[cat])
 
-        # Výstup jako seznam slovníků, kde každý obsahuje kategorii a její jezdce
         result = [{"category": category, "drivers": grouped_drivers[category]} for category in sorted_categories]
 
         return result
@@ -459,18 +449,16 @@ async def get_event_results(event_id: int, phase_id: int, api_key: APIKey = Depe
         cursor.execute(query, (event_id, phase_id))
         event_results = cursor.fetchall()
 
-        # Skupinování výsledků podle kategorie
         categories = defaultdict(list)
 
         for index, result in enumerate(event_results, start=1):
-            result["position"] = len(categories[result["category_id"]]) + 1  # Pozice v rámci kategorie
+            result["position"] = len(categories[result["category_id"]]) + 1
             if isinstance(result["total_time"], timedelta):
                 result["total_time"] = str(result["total_time"])
             result["lap_times"] = result["lap_times"].split(", ")
 
             categories[result["category_id"]].append(result)
 
-        # Převod do finálního formátu
         grouped_results = [
             {"category_id": cat_id, "category_name": results[0]["category_name"], "results": results}
             for cat_id, results in categories.items()
@@ -478,7 +466,7 @@ async def get_event_results(event_id: int, phase_id: int, api_key: APIKey = Depe
 
         return grouped_results
     except Exception as e:
-        print(f"SQL Error: {e}")  # Ladicí výpis
+        print(f"SQL Error: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching event results: {e}")
     finally:
         cursor.close()

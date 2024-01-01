@@ -202,7 +202,6 @@ async def get_user_phase_results(
         if not results:
             return []
 
-        # Transformace výsledků do odpovídajícího modelu s číslem kola
         return [EventDriverEventResultsResponseModel(lap=index + 1, time=result['time']) for index, result in enumerate(results)]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

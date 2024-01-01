@@ -38,7 +38,6 @@ async def delete_series(id: int, api_key: APIKey = Depends(auth.get_api_key)):
     cursor = db_connection.cursor()
 
     try:
-        # Volání uložené procedury DeleteSeries s předáním ID série
         cursor.execute("""CALL DeleteSeries(%s)""", (id,))
         db_connection.commit()
 
@@ -47,7 +46,7 @@ async def delete_series(id: int, api_key: APIKey = Depends(auth.get_api_key)):
 
         return JSONResponse(content={"status": "success", "message": "Series and related events deleted successfully"})
     except Exception as e:
-        db_connection.rollback()  # Zajištění rollbacku při jakékoli chybě
+        db_connection.rollback()
         raise HTTPException(status_code=500, detail=f"Error deleting series: {e}")
     finally:
         cursor.close()

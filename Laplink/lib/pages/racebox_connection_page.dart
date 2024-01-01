@@ -5,7 +5,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:bm_racing_app/components/bluetooth_device_list.dart';
 import 'package:bm_racing_app/pages/race%20pages/race_page.dart';
 import 'package:bm_racing_app/pages/race%20pages/training_qualification_page.dart';
-import 'package:bm_racing_app/pages/race%20pages/live_data_page.dart';
+//import 'package:bm_racing_app/pages/race%20pages/live_data_page.dart';
 import 'package:bm_racing_app/services/bluetooth_service.dart';
 import 'package:bm_racing_app/services/preferences_service.dart';
 import 'package:bm_racing_app/utils/battery_helper.dart';
@@ -31,7 +31,7 @@ class _RaceStartPageState extends State<RaceStartPage> {
   bool isScanning = false;
   bool isBluetoothEnabled = false;
   bool _navigatingToRacePage = false;
-  bool isConnecting = false; // nová proměnná pro sledování stavu připojování
+  bool isConnecting = false;
   StreamSubscription<BluetoothAdapterState>? bluetoothStateSubscription;
   Timer? disconnectTimer;
 
@@ -196,12 +196,10 @@ class _RaceStartPageState extends State<RaceStartPage> {
   }
 
   Future<void> _connectToDevice(BluetoothDevice device) async {
-    // Nastavíme, že probíhá pokus o připojení (může se využít např. pro změnu UI tlačítka)
     setState(() {
       isConnecting = true;
     });
 
-    // Pokud již je nějaké zařízení připojeno, odpojíme ho
     if (connectedDevice != null) {
       await _disconnectDevice();
     }
@@ -212,7 +210,7 @@ class _RaceStartPageState extends State<RaceStartPage> {
         setState(() {
           connectedDevice = device;
           isBatteryLevelKnown = false;
-          isConnecting = false; // připojení proběhlo úspěšně
+          isConnecting = false;
         });
 
         // Uložíme propojený RaceBox pro daný event
@@ -237,7 +235,6 @@ class _RaceStartPageState extends State<RaceStartPage> {
           });
         });
       } else {
-        // Připojení se nezdařilo – vrátíme tlačítko do původního stavu a opět načteme zařízení
         setState(() {
           isConnecting = false;
         });
@@ -418,7 +415,6 @@ class _RaceStartPageState extends State<RaceStartPage> {
               BluetoothDeviceList(
                 devices: devicesList,
                 onConnect: _connectToDevice,
-                // Pokud váš widget podporuje parametr pro indikaci stavu připojování, můžete sem předat i `isConnecting`
               ),
             const SizedBox(height: 16),
             if (connectedDevice != null)

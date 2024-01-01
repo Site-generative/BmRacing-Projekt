@@ -57,7 +57,6 @@ class _SerieRankingsPageState extends State<SerieRankingsPage> {
         future: _futureRankings,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // Použití Lottie načítací animace uvnitř scrollovatelného widgetu
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
@@ -92,7 +91,6 @@ class _SerieRankingsPageState extends State<SerieRankingsPage> {
             );
           }
           final data = snapshot.data;
-          // Očekáváme, že data jsou seznam výsledků.
           if (data is! List) {
             return Center(
               child: Text(
@@ -102,7 +100,6 @@ class _SerieRankingsPageState extends State<SerieRankingsPage> {
             );
           }
 
-          // Rozdělíme výsledky do skupin podle car_category.
           Map<String, List<dynamic>> groupedResults = {};
           for (var result in data) {
             String category = result['car_category'] ?? 'Neznámá';
@@ -112,7 +109,6 @@ class _SerieRankingsPageState extends State<SerieRankingsPage> {
             groupedResults[category]!.add(result);
           }
 
-          // Seřadíme kategorie (např. S1, S2, ...).
           List<String> sortedCategories = groupedResults.keys.toList()..sort();
 
           List<Widget> groupWidgets = sortedCategories.map((category) {
@@ -123,7 +119,7 @@ class _SerieRankingsPageState extends State<SerieRankingsPage> {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: DataTable(
-                headingRowColor: MaterialStateProperty.all(
+                headingRowColor: WidgetStateProperty.all(
                   Theme.of(context).colorScheme.primaryContainer,
                 ),
                 columns: [
@@ -180,8 +176,8 @@ class _SerieRankingsPageState extends State<SerieRankingsPage> {
                   var result = results[index];
                   String fullName = '${result['name']} ${result['surname']}';
                   return DataRow(
-                    color: MaterialStateProperty.resolveWith<Color?>(
-                        (Set<MaterialState> states) {
+                    color: WidgetStateProperty.resolveWith<Color?>(
+                        (Set<WidgetState> states) {
                       if (_currentUser != null &&
                           result['web_user'] == _currentUser) {
                         return Colors.yellow.withOpacity(0.3);

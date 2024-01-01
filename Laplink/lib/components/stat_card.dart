@@ -15,12 +15,11 @@ class StatCard {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface, // Dynamická barva pozadí
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor
-                .withAlpha((0.2 * 255).toInt()), // Dynamický stín
+            color: theme.shadowColor.withAlpha((0.2 * 255).toInt()),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -37,8 +36,8 @@ class StatCard {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSurface
-                    .withAlpha((0.7 * 255).toInt()), // Dynamická barva textu
+                color:
+                    theme.colorScheme.onSurface.withAlpha((0.7 * 255).toInt()),
               ),
             ),
             const SizedBox(height: 4),
@@ -47,8 +46,7 @@ class StatCard {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: valueColor ??
-                    theme.colorScheme.onSurface, // Dynamická barva hodnoty
+                color: valueColor ?? theme.colorScheme.onSurface,
               ),
             ),
           ],

@@ -15,12 +15,6 @@ class LapTimeTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       controller: scrollController,
-      // Důležité: je-li ListView uvnitř Expanded, nepotřebujete shrinkWrap: true.
-      // Ale neuškodí, pokud ho tam necháte. Rozdíl je v tom, že s ním ListView
-      // měří "podle obsahu" místo toho, aby zabíral plnou výšku.
-      // Většinou je to OK i bez shrinkWrapu.
-      // shrinkWrap: true,
-
       itemCount: lapTimes.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -57,7 +51,6 @@ class LapTimeTable extends StatelessWidget {
                 Text(
                   TimeFormatters.formatLapTime(lapTimes[index - 1]),
                   style: TextStyle(
-                    // Poslední kolo v seznamu je červené, jinak bílé
                     color: (index - 1 == lapTimes.length - 1)
                         ? Colors.red
                         : Colors.white,

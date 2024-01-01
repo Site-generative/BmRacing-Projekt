@@ -15,6 +15,9 @@ import 'package:bm_racing_app/services/background_service.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:bm_racing_app/utils/battery_helper.dart';
 
+//Toto je testovací stránka, která sloužila pro prvotní testování funkcí a logiky fáze trénink a kvalifikace.
+//Není implementovaná do hlavní aplikace.
+
 class TrainingQualificationPageTest extends StatefulWidget {
   const TrainingQualificationPageTest({
     super.key,

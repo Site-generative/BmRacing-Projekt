@@ -19,7 +19,6 @@ import 'package:bm_racing_app/pages/user_info_page.dart';
 import 'package:bm_racing_app/pages/serie_event_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-// Importujeme RouteObserver z main.dart
 import 'package:bm_racing_app/main.dart';
 
 class MenuRacePage extends StatefulWidget {
@@ -41,7 +40,6 @@ class _MenuRacePageState extends State<MenuRacePage> with RouteAware {
 
     _checkAndRequestPermissions();
     _loadRaces();
-    // Sledování připojení
     _connectivitySubscription = Connectivity()
         .onConnectivityChanged
         .listen((List<ConnectivityResult> results) {
@@ -56,7 +54,6 @@ class _MenuRacePageState extends State<MenuRacePage> with RouteAware {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Přihlášení do RouteObserver
     routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
 
@@ -67,7 +64,6 @@ class _MenuRacePageState extends State<MenuRacePage> with RouteAware {
     super.dispose();
   }
 
-  // Tato metoda se zavolá, když se uživatel vrátí na tuto stránku
   @override
   void didPopNext() {
     _refreshRaces();
@@ -83,8 +79,7 @@ class _MenuRacePageState extends State<MenuRacePage> with RouteAware {
     _isNoInternetDialogShowing = true;
     showDialog(
       context: context,
-      barrierDismissible:
-          false, // Uživatel nemůže dialog zavřít kliknutím mimo něj
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Bez připojení k internetu'),
         content: const Text('Zkontrolujte, prosím, své připojení k internetu.'),

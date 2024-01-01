@@ -25,18 +25,18 @@ class RaceResponseModel(BaseModel):
     id: int
     name: str
     number_of_laps: int
-    date: Optional[datetime]  # Může být buď datetime nebo None
+    date: Optional[datetime]
     location: str
-    start_coordinates: Optional[str]  # Assuming it's a string, adjust if needed
-    end_coordinates: Optional[str]  # Assuming it's a string, adjust if needed
-    image: Optional[str]  # URL nebo None
+    start_coordinates: Optional[str]
+    end_coordinates: Optional[str]
+    image: Optional[str]
     phase_name: str
     series_name: str
 class DriverRacesResponseModel(BaseModel):
     id: int
     name: str
     number_of_laps: int
-    date: Optional[datetime]  # Může být buď datetime nebo None
+    date: Optional[datetime]
     location: str
     event_phase_id: int
     dnf: bool
@@ -190,9 +190,9 @@ class EventRegistrationsResponseModel(BaseModel):
     car_maker: str
     car_type: str
     car_configuration_id: Optional[int]
-    power_weight_ratio: Optional[float]  # Nově přidané power-weight ratio
-    category_name: Optional[str]  # Nově přidaná kategorie
-    excessive_modifications: float # suma decimal modifikací
+    power_weight_ratio: Optional[float]
+    category_name: Optional[str]
+    excessive_modifications: float
     configuration_status: str
 class EventResultsResponseModel(BaseModel):
     position: int
@@ -280,9 +280,9 @@ class GroupedSeriesEventResponseModel(BaseModel):
     location: str
 class EventResultDriverModel(BaseModel):
     position: int
-    total_time: Optional[str]  # Může být NULL
+    total_time: Optional[str]
     full_name: str
-    web_user: Optional[str]  # Může být NULL
+    web_user: Optional[str]
 
 
 class EventResultPhaseModel(BaseModel):
@@ -308,7 +308,7 @@ class DriverRankingModel(BaseModel):
     race_number: str
     car: str
     total_points: int
-    races: Dict[str, int]  # { "Malečov - Generated": 18, "Globus circuit": 25 }
+    races: Dict[str, int]
 class DriverRankingModelApp(BaseModel):
     name: str
     surname: str
