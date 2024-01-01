@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import "package:laplink/utils/time_formatters.dart";
+import 'package:bm_racing_app/utils/time_formatters.dart';
 
 class LapTimeTable extends StatelessWidget {
   final List<double> lapTimes;
@@ -15,7 +15,12 @@ class LapTimeTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       controller: scrollController,
-      shrinkWrap: true,
+      // Důležité: je-li ListView uvnitř Expanded, nepotřebujete shrinkWrap: true.
+      // Ale neuškodí, pokud ho tam necháte. Rozdíl je v tom, že s ním ListView
+      // měří "podle obsahu" místo toho, aby zabíral plnou výšku.
+      // Většinou je to OK i bez shrinkWrapu.
+      // shrinkWrap: true,
+
       itemCount: lapTimes.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -46,13 +51,14 @@ class LapTimeTable extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  (index).toString(),
+                  index.toString(),
                   style: const TextStyle(color: Colors.white),
                 ),
                 Text(
-                  TimeFormatters.formatLapTimeToTable(lapTimes[index - 1]),
+                  TimeFormatters.formatLapTime(lapTimes[index - 1]),
                   style: TextStyle(
-                    color: index - 1 == lapTimes.length - 1
+                    // Poslední kolo v seznamu je červené, jinak bílé
+                    color: (index - 1 == lapTimes.length - 1)
                         ? Colors.red
                         : Colors.white,
                   ),

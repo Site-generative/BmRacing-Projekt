@@ -18,7 +18,7 @@ class DriverRegistration(BaseModel):
     street: str = Field(..., example="Valtířov")
     postcode: int = Field(..., example=40002)
     birth_date: datetime = Field(..., example="2000-01-01")
-    phone: str = Field(..., example="777654852")
+    phone: Optional[str] = Field(..., example="777654852")
     email: str = Field(..., example="domik.mbvins@seznam.cz")
     number: int = Field(..., example=31)
     web_user: str = Field(..., example="dominik")
@@ -39,16 +39,17 @@ class CreateCarConfiguration(BaseModel):
     power: int = Field(..., example=200)
     weight: int = Field(..., example=1200)
     power_weight_ratio: float = Field(..., example=0.16)
-    aero_upgrade: bool = Field(..., example=True)
+    aero_upgrade: float = Field(..., example=0.16)
     excessive_modifications: bool = Field(..., example=False)
-    excessive_chamber: bool = Field(..., example=False)
+    excessive_chamber: float = Field(..., example=0.16)
     liquid_leakage: bool = Field(..., example=False)
     rear_lights: bool = Field(..., example=True)
     safe: bool = Field(..., example=True)
-    street_legal_tires: bool = Field(..., example=True)
-    seat_seatbelt_cage: bool = Field(..., example=True)
-    widebody: bool = Field(..., example=False)
-    wide_tires: bool = Field(..., example=False)
+    street_legal_tires: float = Field(..., example=0.16)
+    seat: float = Field(..., example=0.16)
+    seatbelt: float = Field(..., example=0.16)
+    widebody: float = Field(..., example=0.16)
+    wide_tires: float = Field(..., example=0.16)
 class CreateCarCategory(BaseModel):
     name: str = Field(..., example="A1")
     description: Optional[str] = Field(..., example="Rally cars")
@@ -64,7 +65,7 @@ class CreateEvent(BaseModel):
 class PostLapData(BaseModel):
     event_id: int = Field(..., example=1)
     web_user: str = Field(..., example="dominik")
-    laptime: str = Field(..., example="00:01:30.000")
+    laptime: str = Field(..., example="00:01:30.00")
     event_phase_id: int = Field(..., example=1)
 class RegisterDriverToEvent(BaseModel):
     driver_id: int = Field(..., example=1)
@@ -107,7 +108,7 @@ class DriverUpdate(BaseModel):
     street: str = Field(..., example="Masarykova")
     postcode: str = Field(..., example="60200")
     birth_date: str = Field(..., example="2000-01-01")
-    phone: str = Field(..., example="123456789")
+    phone: Optional[str] = Field(..., example="123456789")
     email: str = Field(..., example="johndoe@gmail.com")
     number: str = Field(..., example="31")
     racebox_id: Optional[int] = Field(..., example=0)
@@ -198,6 +199,10 @@ class UpdateSerie(BaseModel):
     name: str = Field(..., example="Czech Cup")
     year: str = Field(..., example=2024)
 class DriverEventState(BaseModel):
+    event_id: int
+    dnf: bool
+    finished: bool
+class DriverEventStateModel(BaseModel):
     event_id: int
     dnf: bool
     finished: bool

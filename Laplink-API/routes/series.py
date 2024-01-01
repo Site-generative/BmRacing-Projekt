@@ -6,7 +6,6 @@ from db.connection import prioritized_get_db_connection
 from response_models.response_models import SeriesResponseModel, PostResponseModel, DeleteResponseModel
 from response_models.commonTypes import CreateSeries, UpdateSerie
 import service.auth as auth
-from utilities import formatting
 
 router = APIRouter()
 
@@ -35,24 +34,21 @@ async def create_series(
 
 @router.delete("/delete/series/{id}", response_model=DeleteResponseModel)
 async def delete_series(id: int, api_key: APIKey = Depends(auth.get_api_key)):
-    '''
-        Smaže sérii podle jejího ID a všechny související záznamy v dalších tabulkách.
-    '''
     db_connection = prioritized_get_db_connection(priority="high")
     cursor = db_connection.cursor()
 
     try:
-        command = """DELETE FROM series WHERE id = %s;"""
-        cursor.execute(command, (id,))
+        # Volání uložené procedury DeleteSeries s předáním ID série
+        cursor.execute("""CALL DeleteSeries(%s)""", (id,))
         db_connection.commit()
 
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Series not found")
 
-        return JSONResponse(content={"status": "success", "message": "Series deleted successfully"})
+        return JSONResponse(content={"status": "success", "message": "Series and related events deleted successfully"})
     except Exception as e:
-        db_connection.rollback()
-        raise HTTPException(status_code=400, detail=f"Error deleting series: {e}")
+        db_connection.rollback()  # Zajištění rollbacku při jakékoli chybě
+        raise HTTPException(status_code=500, detail=f"Error deleting series: {e}")
     finally:
         cursor.close()
         db_connection.close()

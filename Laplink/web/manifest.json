@@ -1,6 +1,6 @@
 {
-    "name": "laplink",
-    "short_name": "laplink",
+    "name": "bm_racing_app",
+    "short_name": "bm_racing_app",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

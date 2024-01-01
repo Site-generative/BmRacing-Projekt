@@ -1,5 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:laplink/services/api_service.dart';
+import 'package:bm_racing_app/services/api_service.dart';
 
 class RaceService {
   /// Získání závodů pro uživatele z API a přidání informace, zda byl závod dokončen

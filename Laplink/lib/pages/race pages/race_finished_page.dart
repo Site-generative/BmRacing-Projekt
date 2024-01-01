@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:laplink/pages/menu_race_page.dart';
+import 'package:bm_racing_app/pages/menu_race_page.dart';
 
 class RaceFinishedPage extends StatelessWidget {
   final String message;
   final double time;
 
-  const RaceFinishedPage(
-      {super.key, required this.message, required this.time});
+  const RaceFinishedPage({
+    super.key,
+    required this.message,
+    required this.time,
+  });
 
   String formatTime(double timeInSeconds) {
     int minutes = timeInSeconds ~/ 60;
@@ -27,14 +30,13 @@ class RaceFinishedPage extends StatelessWidget {
         title: Text(
           'Závod dokončen',
           style: TextStyle(
-            color: theme.colorScheme.onSurface, // Dynamická barva textu
+            color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
         ),
         centerTitle: true,
-        backgroundColor:
-            Theme.of(context).scaffoldBackgroundColor, // Dynamická barva pozadí
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () {
@@ -47,6 +49,7 @@ class RaceFinishedPage extends StatelessWidget {
           gradient: LinearGradient(
             colors: theme.brightness == Brightness.dark
                 ? [
+                    Theme.of(context).scaffoldBackgroundColor,
                     Theme.of(context).scaffoldBackgroundColor,
                   ]
                 : [
@@ -64,16 +67,21 @@ class RaceFinishedPage extends StatelessWidget {
               Icon(
                 Icons.flag_rounded,
                 size: 100,
-                color: theme.colorScheme.secondary, // Dynamická barva ikony
+                color: theme.colorScheme.secondary,
               ),
               const SizedBox(height: 20),
-              Text(
-                time == 0.0 ? message : '$message ${formatTime(time)}',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface, // Dynamická barva textu
+              // Upravený widget s omezenou šířkou a paddingem
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: Text(
+                  time == 0.0 ? message : '$message ${formatTime(time)}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -90,12 +98,12 @@ class RaceFinishedPage extends StatelessWidget {
                   'Zpět na hlavní obrazovku',
                   style: TextStyle(
                     fontSize: 20,
-                    color: theme.colorScheme.onPrimary, // Dynamická barva textu
+                    color: theme.colorScheme.onPrimary,
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      theme.colorScheme.primary, // Primární barva tlačítka
+                  backgroundColor: theme.colorScheme.primary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 40,
                     vertical: 20,

@@ -1,0 +1,2 @@
+C:/Users/Dom/Desktop/BM-Racing-App/android/app/.cxx/RelWithDebInfo/27xh195c/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/Dom/Desktop/BM-Racing-App/android/app/.cxx/RelWithDebInfo/27xh195c/armeabi-v7a/CMakeFiles/rebuild_cache.dir

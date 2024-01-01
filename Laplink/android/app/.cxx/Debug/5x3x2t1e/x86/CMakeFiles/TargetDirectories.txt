@@ -1,0 +1,2 @@
+C:/Users/Dom/Desktop/BM-Racing-App/android/app/.cxx/Debug/5x3x2t1e/x86/CMakeFiles/edit_cache.dir
+C:/Users/Dom/Desktop/BM-Racing-App/android/app/.cxx/Debug/5x3x2t1e/x86/CMakeFiles/rebuild_cache.dir

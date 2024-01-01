@@ -5,18 +5,18 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:laplink/utils/battery_helper.dart';
 import 'dart:math';
+
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:laplink/services/api_service.dart';
-import 'package:laplink/pages/race%20pages/race_finished_page.dart';
+import 'package:bm_racing_app/services/api_service.dart';
+import 'package:bm_racing_app/pages/race%20pages/race_finished_page.dart';
 import 'package:keep_screen_on/keep_screen_on.dart';
-import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:laplink/utils/time_formatters.dart';
-import 'package:laplink/components/stat_card.dart';
-import 'package:laplink/services/background_service.dart';
-import 'package:laplink/components/lap_time_table.dart';
+import 'package:bm_racing_app/utils/time_formatters.dart';
+import 'package:bm_racing_app/components/stat_card.dart';
+import 'package:bm_racing_app/services/background_service.dart';
+import 'package:bm_racing_app/components/lap_time_table.dart';
 import 'package:battery_plus/battery_plus.dart';
+import 'package:bm_racing_app/utils/battery_helper.dart';
 
 class RacePage extends StatefulWidget {
   final BluetoothDevice device;
@@ -33,93 +33,93 @@ class RacePage extends StatefulWidget {
 }
 
 class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
+  // ------------------------------------------------------
+  // Proměnné
+  // ------------------------------------------------------
   List<int> buffer = [];
+
   double currentSpeed = 0.0;
   String currentTime = '';
   double? fastestLap;
   int completedLaps = 0;
   int numberOfLaps = 0;
   List<double> lapTimes = [];
+
+  double currentLatitude = 0.0;
+  double currentLongitude = 0.0;
+
   bool raceStarted = false;
   bool raceEnded = false;
+  bool lock = false;
+  bool isCalibrating = true;
+  bool isLoading = true;
+  bool dnf = false;
+
   final double maxValidSpeed = 250.0;
-  Stopwatch stopwatch = Stopwatch();
+  final ScrollController _scrollController = ScrollController();
+  final _bufferStreamController = StreamController<Uint8List>.broadcast();
+  late StreamSubscription _bufferSubscription;
+
+  final Stopwatch stopwatch = Stopwatch();
   late List<double> startLineP1;
   late List<double> startLineP2;
-  bool lock = false;
+
   int eventId = 0;
   int eventPhaseId = 0;
   String webUser = '';
   Map<String, dynamic>? raceInfo;
-  double currentLatitude = 0.0;
-  double currentLongitude = 0.0;
-  bool isLoading = true;
+
   Timer? _notificationTimer;
   bool isNotificationActive = false;
 
-  final ScrollController _scrollController = ScrollController();
-  final _bufferStreamController = StreamController<Uint8List>.broadcast();
-  late StreamSubscription _bufferSubscription;
-  bool isCalibrating = true;
-  final StatCard statCard = StatCard();
   final BatteryHelper batteryHelper = BatteryHelper();
-  late BackgroundService _backgroundService;
-  bool dnf = false;
-  int lapsOnTires = 0;
-
   final Battery _battery = Battery();
   BatteryState _batteryState = BatteryState.unknown;
   int? batteryLevel = 0;
-  bool isBatteryLevelKnown = false; // Indikátor, zda je hodnota baterie známa
+  bool isBatteryLevelKnown = false;
 
-  bool lowBatteryWarningShown = false;
-  bool criticalBatteryWarningShown = false;
-  bool isCharging = false;
+  int lapsOnTires = 0;
+  late BackgroundService _backgroundService;
+  final StatCard statCard = StatCard();
 
-  Timer? _connectionStateTimer;
-  bool _ignoreConnectionState = true;
+  // Držíme si minulou GPS pozici pro lineární interpolaci
+  double? _lastLat;
+  double? _lastLon;
+  DateTime? _lastGnssTime;
 
   @override
   void initState() {
     super.initState();
 
-    _connectionStateTimer = Timer(const Duration(seconds: 3), () {
-      _ignoreConnectionState = false;
-      _listenToDeviceConnectionState(); // Spuštění sledování připojení
-    });
-
-    // Resetování stavu
-    isCalibrating = true; // Začátek kalibrace
-    buffer.clear(); // Vymazání bufferu
-    stopwatch.reset(); // Reset stopek
-    stopwatch.stop();
-    raceStarted = false; // Reset stavu závodu
+    // Základní nastavení
+    isCalibrating = true;
+    buffer.clear();
+    stopwatch
+      ..reset()
+      ..stop();
+    raceStarted = false;
     raceEnded = false;
     completedLaps = 0;
-    lapTimes.clear(); // Vymazání seznamu časů kol
-    currentLatitude = 0.0;
-    currentLongitude = 0.0;
-    lock = false; // Reset zámku
+    lapTimes.clear();
 
-    // Inicializace dalších komponent
     _backgroundService = BackgroundService(context: context);
     WidgetsBinding.instance.addObserver(this);
+
     _initializeRaceData();
     _listenToCharacteristic();
-    checkNotificationPermission();
-    _initializeNotifications();
-    _backgroundService.showCalibrationDialog();
 
-    _bufferSubscription = _bufferStreamController.stream
-        .transform(StreamTransformer.fromHandlers(handleData: (data, sink) {
-      Future.delayed(const Duration(milliseconds: 300), () {
-        sink.add(data);
-      });
-    })).listen((data) {
+    // Zobrazení dialogu "kalibrace"
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _backgroundService.showCalibrationDialog();
+    });
+
+    // Poslech na příchozí BLE data
+    _bufferSubscription = _bufferStreamController.stream.listen((data) {
       buffer.addAll(data as Uint8List);
       _processData();
     });
 
+    // Sledování stavu baterie
     _battery.onBatteryStateChanged.listen((BatteryState state) {
       setState(() {
         _batteryState = state;
@@ -127,89 +127,17 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     });
   }
 
+  // ------------------------------------------------------
+  // Lifecycle & notifikace
+  // ------------------------------------------------------
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       _backgroundService.enableBackgroundExecution();
-      if (!isNotificationActive) {
-        _startUpdatingNotification();
-      }
+      if (!isNotificationActive) {}
     } else if (state == AppLifecycleState.resumed) {
       _backgroundService.disableBackgroundExecution();
-      _cancelNotification();
     }
-  }
-
-  void checkNotificationPermission() async {
-    bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
-    if (!isAllowed) {
-      await AwesomeNotifications().requestPermissionToSendNotifications();
-    }
-  }
-
-  void _initializeNotifications() {
-    AwesomeNotifications().initialize(
-      null,
-      [
-        NotificationChannel(
-          channelKey: 'race_channel',
-          channelName: 'Závodní Notifikace',
-          channelDescription: 'Notifikace na zobrazování informací o závodu',
-          defaultColor: Colors.teal,
-          importance: NotificationImportance.High,
-          ledColor: Colors.white,
-          locked: true,
-        )
-      ],
-    );
-  }
-
-  void _listenToDeviceConnectionState() {
-    widget.device.connectionState.listen((state) {
-      if (_ignoreConnectionState) return; // Ignorace během kalibrace
-
-      if (state == BluetoothConnectionState.disconnected) {
-        setState(() {
-          dnf = true;
-        });
-        _endRace();
-      }
-    });
-  }
-
-  void _startUpdatingNotification() {
-    if (isNotificationActive) return;
-
-    _notificationTimer?.cancel();
-    _notificationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (isNotificationActive) return;
-
-      String currentTime = TimeFormatters.formattedStopwatchTime(stopwatch);
-      _showPersistentNotification(currentTime);
-      isNotificationActive = true;
-    });
-  }
-
-  void _cancelNotification() {
-    _notificationTimer?.cancel();
-    _notificationTimer = null;
-    isNotificationActive = false;
-    AwesomeNotifications().cancel(1);
-  }
-
-  void _showPersistentNotification(String time) {
-    AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: 1,
-        channelKey: 'race_channel',
-        title: "Závod",
-        body: 'Aplikace je spuštěna na pozadí',
-        notificationLayout: NotificationLayout.Default,
-        displayOnForeground: true,
-        displayOnBackground: true,
-        locked: true, // Non-dismissible
-      ),
-    );
   }
 
   @override
@@ -218,25 +146,12 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     _backgroundService.disableBackgroundExecution();
     _bufferSubscription.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    _cancelNotification();
     super.dispose();
   }
 
-  Future<void> _saveLapsOnTires(int eventId, int laps) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setInt('laps_on_tires_$eventId', laps);
-  }
-
-  Future<int> _loadLapsOnTires(int eventId) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('laps_on_tires_$eventId') ?? 0;
-  }
-
-  Future<void> _resetLapsOnTires(int eventId) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.remove('laps_on_tires_$eventId');
-  }
-
+  // ------------------------------------------------------
+  // Inicializace závodu
+  // ------------------------------------------------------
   Future<void> _initializeRaceData() async {
     setState(() {
       isLoading = true;
@@ -261,6 +176,7 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
       final data = await apiClient.getRaceDetail(eventId);
       setState(() {
         raceInfo = data;
+        // startLine definován
         startLineP1 =
             _parseCoordinate(raceInfo!['start_coordinates'].split(';')[0]);
         startLineP2 =
@@ -276,6 +192,7 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     }
   }
 
+  // Příznak ukončení závodu na serveru
   Future<void> _markRaceAsCompleted(int raceId, bool dnf) async {
     try {
       final ApiClient apiClient = ApiClient();
@@ -286,19 +203,15 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
         _showMessage('Chyba při odesílání stavu závodu: $error');
       });
     } catch (error) {
-      _showMessage('Nastala chyba při nastavení stavu závodu $error');
+      _showMessage('Nastala chyba při nastavení stavu závodu: $error');
     }
   }
 
-  List<double> _parseCoordinate(String coordinate) {
-    final parts = coordinate.split(',');
-    return [double.parse(parts[0]), double.parse(parts[1])];
-  }
-
+  // ------------------------------------------------------
+  // BLE
+  // ------------------------------------------------------
   void _listenToCharacteristic() {
     widget.characteristic.setNotifyValue(true).then((_) {
-      // Nastavení časové bariéry
-
       widget.characteristic.lastValueStream.listen((value) {
         if (value.isNotEmpty) {
           _bufferStreamController.add(Uint8List.fromList(value));
@@ -347,52 +260,38 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
     return ckA == packet[packet.length - 2] && ckB == packet[packet.length - 1];
   }
 
+  // ------------------------------------------------------
+  //  Dekódování (lineární interpolace + segment check)
+  // ------------------------------------------------------
   void _decodePacket(Uint8List payload) {
     if (raceEnded || payload.isEmpty) return;
 
-    currentLongitude = _getInt32(payload, 24) / 1e7;
-    currentLatitude = _getInt32(payload, 28) / 1e7;
-    double speed = _getInt32(payload, 48) / 1e3 * 3.6;
+    // 1) Čtení fix
+    int fixStatus = payload[20]; // 0=no,2=2D,3=3D
+    int fixFlags = payload[21]; // bit 0 = valid fix
+    bool fixOk = (fixStatus == 3) && ((fixFlags & 0x01) != 0);
+
+    // 2) Poloha
+    double newLon = _getInt32(payload, 24) / 1e7;
+    double newLat = _getInt32(payload, 28) / 1e7;
+
+    // Baterie
     int currentBatteryLevel = payload[67] & 0x7F;
 
-    // Přidáme kontrolu na Fix Status, jestli je GNSS fix ve stavu 3D
-    int fixStatus =
-        payload[20]; // Hodnota Fix Status je na 20. pozici v payloadu
-
-    // Kontrola platnosti polohy a GNSS fixu (3 = 3D fix)
-    if (isCalibrating &&
-        fixStatus == 3 &&
-        (currentLatitude != 0.0 || currentLongitude != 0.0)) {
+    // Kalibrace
+    if (isCalibrating && fixOk && (newLat != 0.0 || newLon != 0.0)) {
       isCalibrating = false;
-      Navigator.of(context).pop(); // Zavře dialog
+      Navigator.of(context).pop();
     }
-
-    if (speed > maxValidSpeed) return;
 
     setState(() {
       batteryLevel = currentBatteryLevel;
       isBatteryLevelKnown = true;
+      currentLatitude = newLat;
+      currentLongitude = newLon;
+      currentTime = DateTime.now().toIso8601String();
 
-      currentTime = DateTime.now().toLocal().toIso8601String();
-      currentSpeed = speed;
-
-      bool crossingStart = _isCrossingLine(
-          currentLatitude, currentLongitude, startLineP1, startLineP2);
-
-      if (crossingStart && !lock) {
-        lock = true;
-        if (!raceStarted) {
-          stopwatch.start();
-          raceStarted = true;
-          completedLaps = 1;
-        } else {
-          registerLap();
-        }
-
-        Future.delayed(const Duration(seconds: 5), () {
-          lock = false;
-        });
-      }
+      // Baterie => dnf?
       if (currentBatteryLevel == 0) {
         _showMessage('Baterie je na 0%. Zařízení bude odpojeno.');
         Fluttertoast.showToast(
@@ -405,208 +304,223 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
         );
         dnf = true;
         _endRace();
+        return;
       }
+
+      // Když fix není ok, ignorujeme
+      if (!fixOk) {
+        return;
+      }
+
+      // 3) Zkusíme spočítat crossing
+      if (_lastLat != null && _lastLon != null) {
+        double sidePrev = _sideOfLine(_lastLat!, _lastLon!, startLineP1[0],
+            startLineP1[1], startLineP2[0], startLineP2[1]);
+        double sideCurr = _sideOfLine(newLat, newLon, startLineP1[0],
+            startLineP1[1], startLineP2[0], startLineP2[1]);
+
+        bool signChanged =
+            (sidePrev > 0 && sideCurr < 0) || (sidePrev < 0 && sideCurr > 0);
+
+        if (signChanged && !lock && !isCalibrating) {
+          // 4) alpha => lineární interpolace
+          double alpha = sidePrev.abs() / (sidePrev.abs() + sideCurr.abs());
+
+          // (Pro plnou robustnost bychom měli i GNSS time – offset 4..16,
+          //  ale tady zůstaneme u stopek, jak to máte nastavené.)
+          // Můžeme reálně se držet stopek, nebo zkusit "přesný crossing time".
+          // Zde ponecháme stopwatch styl, abychom zachovali logiku vaší app.
+
+          // 5) Vypočítáme "bod crossing" v lat/lon
+          double oldLat = _lastLat!;
+          double oldLon = _lastLon!;
+          double latDelta = newLat - oldLat;
+          double lonDelta = newLon - oldLon;
+
+          double crossingLat = oldLat + alpha * latDelta;
+          double crossingLon = oldLon + alpha * lonDelta;
+
+          // 6) Zjistíme, zda crossing leží na segmentu startLineP1->startLineP2
+          //    => spočteme param u
+          double? u = _computeSegmentParam(
+            startLineP1[0],
+            startLineP1[1],
+            startLineP2[0],
+            startLineP2[1],
+            crossingLat,
+            crossingLon,
+          );
+          if (u != null && u >= 0.0 && u <= 1.0) {
+            lock = true;
+
+            if (!raceStarted) {
+              // Start závodu
+              stopwatch.start();
+              raceStarted = true;
+              completedLaps = 1;
+            } else {
+              // Další kolo
+              _registerLap();
+            }
+
+            Future.delayed(const Duration(seconds: 2), () {
+              lock = false;
+            });
+          }
+        }
+      }
+
+      _lastLat = newLat;
+      _lastLon = newLon;
     });
   }
 
-  void registerLap() async {
-    double lapTime = stopwatch.elapsedMilliseconds / 1000;
+  // ------------------------------------------------------
+  // Registrace kola + stopek
+  // ------------------------------------------------------
+  void _registerLap() async {
+    // Tady se držíme původního stylu => stopek
+    stopwatch.stop();
+    double lapTime = stopwatch.elapsedMilliseconds / 1000.0;
 
     if (lapTime > 0.0) {
       final apiClient = ApiClient();
       apiClient.initialize();
-
       apiClient
-          .postLapData(eventId, webUser, TimeFormatters.formatLapTime(lapTime),
-              eventPhaseId)
+          .postLapData(
+        eventId,
+        webUser,
+        TimeFormatters.formatLapTime(lapTime),
+        eventPhaseId,
+      )
           .catchError((error, stackTrace) {
         _showMessage('Chyba při odesílání dat: $error');
       });
-      lapTimes.add(lapTime);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
+
+      setState(() {
+        lapTimes.add(lapTime);
+        if (fastestLap == null || lapTime < fastestLap!) {
+          fastestLap = lapTime;
+        }
       });
-      if (fastestLap == null || lapTime < fastestLap!) {
-        fastestLap = lapTime;
+
+      lapsOnTires++;
+      await _saveLapsOnTires(eventId, lapsOnTires);
+
+      if (completedLaps >= numberOfLaps) {
+        _endRace();
       }
-    }
-    lapsOnTires++;
-    await _saveLapsOnTires(eventId, lapsOnTires);
-
-    stopwatch.stop();
-    stopwatch.reset();
-    stopwatch.start();
-
-    int currentLap = completedLaps + 1;
-
-    if (currentLap > numberOfLaps) {
-      completedLaps = numberOfLaps;
-      _endRace();
-    } else {
       completedLaps++;
     }
+
+    // Reset stopek pro další kolo
+    stopwatch
+      ..reset()
+      ..start();
   }
 
+  // ------------------------------------------------------
+  // Konec závodu
+  // ------------------------------------------------------
   void _endRace() async {
-    setState(() {
-      raceEnded = true;
-    });
-    _ignoreConnectionState = true;
+    raceEnded = true;
     stopwatch.stop();
-    _cancelNotification(); // Zruší notifikaci
+
+    // Součet kol
     double totalRaceTime = lapTimes.fold(0, (a, b) => a + b);
 
     final isDisc = await _disconnectDevice();
     await _backgroundService.disableBackgroundExecution();
 
-    if (!isDisc) {
-      _showMessage('Nepodařilo se odpojit zařízení (nebo už bylo odpojené), '
-          'ale pokračuji v ukončení závodu.');
-    }
+    if (isDisc) {
+      // Stav závodu na serveru
+      await _markRaceAsCompleted(eventId, dnf);
 
-    // Uložíme stav (včetně DNF) na server
-    await _markRaceAsCompleted(eventId, dnf).catchError((error, stackTrace) {
-      _showMessage('Chyba při odesílání stavu závodu: $error');
-    });
-
-    // A přejdeme na stránku s výsledkem
-    if (dnf) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => RaceFinishedPage(
-            message: 'Závod ukončen jako DNF.',
-            time: totalRaceTime,
+      if (dnf) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RaceFinishedPage(
+              message: 'Byl jste DNF a závod byl ukončen. Celkový čas: ',
+              time: totalRaceTime,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RaceFinishedPage(
+              message: 'Celkově jste ujeli závod za: ',
+              time: totalRaceTime,
+            ),
+          ),
+        );
+      }
     } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => RaceFinishedPage(
-            message: 'Celkový čas závodu: ',
-            time: totalRaceTime,
-          ),
-        ),
-      );
+      _showMessage(
+          'Nelze ukončit závod, zařízení není připojeno, zkuste to prosím znovu.');
     }
   }
 
-  void _handleTireChange() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final theme = Theme.of(context);
-        return AlertDialog(
-          backgroundColor: theme.colorScheme.surface, // Dynamic background
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
-          ),
-          title: Text(
-            'Změna sady kol',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          content: Text(
-            'Opravdu chcete provést změnu sady kol? Počet kol na sadě bude resetován.',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface.withAlpha((0.7 * 255).toInt()),
-              fontSize: 16,
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.primary, // Dynamic red
-              ),
-              child: const Text('Zrušit'),
-            ),
-            TextButton(
-              onPressed: () {
-                _resetLapsOnTires(eventId).then((_) {
-                  setState(() {
-                    completedLaps = 0; // Reset aktuální hodnoty
-                  });
-                });
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.green, // Confirm button color
-              ),
-              child: const Text('Potvrdit'),
-            ),
-          ],
-        );
-      },
+  void _registerLapManually() {
+    stopwatch.stop();
+    double lapTime = stopwatch.elapsedMilliseconds / 1000.0;
+    stopwatch
+      ..reset()
+      ..start();
+    _registerLap();
+  }
+
+  // ------------------------------------------------------
+  // Výpočet parametru "u" => jestli crossing bod leží
+  // v segmentu startLineP1->startLineP2
+  // ------------------------------------------------------
+  double? _computeSegmentParam(
+    double x1lat,
+    double x1lon,
+    double x2lat,
+    double x2lon,
+    double px,
+    double py,
+  ) {
+    final double dx = x2lat - x1lat;
+    final double dy = x2lon - x1lon;
+    final double denom = dx * dx + dy * dy;
+    if (denom == 0.0) return null;
+
+    final double pxRel = px - x1lat;
+    final double pyRel = py - x1lon;
+
+    final double dot = (pxRel * dx) + (pyRel * dy);
+    final double param = dot / denom;
+    return param;
+  }
+
+  // ------------------------------------------------------
+  // sideOfLine
+  // ------------------------------------------------------
+  double _sideOfLine(double lat, double lon, double x1lat, double x1lon,
+      double x2lat, double x2lon) {
+    // cross = (x2lat - x1lat)*(lon - x1lon) - (x2lon - x1lon)*(lat - x1lat)
+    return (x2lat - x1lat) * (lon - x1lon) - (x2lon - x1lon) * (lat - x1lat);
+  }
+
+  // ------------------------------------------------------
+  // Pomocné funkce
+  // ------------------------------------------------------
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  Color _getLapTimeColor() {
-    if (lapTimes.isEmpty) return Colors.green;
-
-    final lastLap = lapTimes.last;
-    if (fastestLap == null || lastLap < fastestLap!) {
-      fastestLap = lastLap;
-      return Colors.green;
-    }
-
-    return lastLap > fastestLap! ? Colors.red : Colors.green;
-  }
-
-  bool _isCrossingLine(
-      double lat, double lon, List<double> lineP1, List<double> lineP2) {
-    double threshold = 0.0001;
-    double d1 = _distanceToLineSegment(
-        lat, lon, lineP1[0], lineP1[1], lineP2[0], lineP2[1]);
-    return d1 < threshold;
-  }
-
-  double _distanceToLineSegment(
-      double px, double py, double x1, double y1, double x2, double y2) {
-    double A = px - x1;
-    double B = py - y1;
-    double C = x2 - x1;
-    double D = y2 - y1;
-
-    double dot = A * C + B * D;
-    double lenSq = C * C + D * D;
-    double param = (lenSq != 0) ? dot / lenSq : -1;
-
-    double xx, yy;
-
-    if (param < 0) {
-      xx = x1;
-      yy = y1;
-    } else if (param > 1) {
-      xx = x2;
-      yy = y2;
-    } else {
-      xx = x1 + param * C;
-      yy = y1 + param * D;
-    }
-
-    double dx = px - xx;
-    double dy = py - yy;
-    return sqrt(dx * dx + dy * dy);
+  List<double> _parseCoordinate(String coordinate) {
+    final parts = coordinate.split(',');
+    return [double.parse(parts[0]), double.parse(parts[1])];
   }
 
   int _getUint32(Uint8List data, int offset) {
@@ -627,253 +541,288 @@ class _RacePageState extends State<RacePage> with WidgetsBindingObserver {
         (data[offset + 3] << 24);
   }
 
+  Future<int> _loadLapsOnTires(int eventId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('laps_on_tires_$eventId') ?? 0;
+  }
+
+  Future<void> _saveLapsOnTires(int eventId, int laps) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setInt('laps_on_tires_$eventId', laps);
+  }
+
   Future<bool> _disconnectDevice() async {
     try {
-      // Zjistíme, zda je skutečně připojeno
+      await widget.characteristic.setNotifyValue(false);
       var currentState = await widget.device.connectionState.first;
-
       if (currentState == BluetoothConnectionState.connected) {
-        // Pokud je connected, vypneme notifikace a zkusíme odpojit
-        await widget.characteristic.setNotifyValue(false);
         await widget.device.disconnect();
+        setState(() {
+          batteryLevel = 0;
+        });
+        return true;
+      } else {
+        setState(() {
+          batteryLevel = 0;
+        });
+        return true;
       }
-
-      // V každém případě nastavíme batteryLevel na nulu (jen pro UI)
-      setState(() {
-        batteryLevel = 0;
-      });
-      // Když proběhne vše OK (nebo je už dávno odpojeno), vrátíme true
-      return true;
     } catch (e) {
-      // Pokud nastala nějaká chyba, odchytíme ji a vrátíme false
-      debugPrint('Chyba při odpojování: $e');
       return false;
     }
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 3),
-      ),
+  Future<void> _resetLapsOnTires(int eventId) async {
+    setState(() {
+      lapsOnTires = 0;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    prefs.remove('laps_on_tires_$eventId');
+  }
+
+  void _handleTireChange() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          title: Text(
+            'Změna sady kol',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          content: Text(
+            'Opravdu chcete provést změnu sady kol? Počet kol na sadě bude resetován.',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withAlpha((0.7 * 255).toInt()),
+              fontSize: 16,
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.primary,
+              ),
+              child: const Text('Zrušit'),
+            ),
+            TextButton(
+              onPressed: () {
+                _resetLapsOnTires(eventId);
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.green,
+              ),
+              child: const Text('Potvrdit'),
+            ),
+          ],
+        );
+      },
     );
   }
 
+  Color _getLapTimeColor() {
+    if (lapTimes.isEmpty) return Colors.green;
+    final lastLap = lapTimes.last;
+    return (fastestLap == null || lastLap < fastestLap!)
+        ? Colors.green
+        : lastLap > fastestLap!
+            ? Colors.red
+            : Colors.green;
+  }
+
+  // ------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
 
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: theme.colorScheme.surface,
-          title: Text(
-            'Závod',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: theme.colorScheme.surface,
+        title: Text(
+          'Závod',
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
-          elevation: 2,
-          centerTitle: true,
-          automaticallyImplyLeading: false, // No back button
-          actions: [
-            // Zobrazíme baterii pouze pokud máme validní data
-            Row(
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isBatteryLevelKnown
-                          ? batteryHelper.getBatteryIcon(batteryLevel!, false)
-                          : Icons
-                              .battery_unknown, // Původně tam bylo getBatteryIcon() bez parametrů
+        ),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        actions: [
+          Row(
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isBatteryLevelKnown
+                        ? batteryHelper.getBatteryIcon(batteryLevel!, false)
+                        : Icons.battery_unknown,
+                    color: isBatteryLevelKnown
+                        ? batteryHelper.getBatteryColor(batteryLevel!)
+                        : Colors.grey,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    isBatteryLevelKnown ? '$batteryLevel%' : 'N/A',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
                       color: isBatteryLevelKnown
                           ? batteryHelper.getBatteryColor(batteryLevel!)
                           : Colors.grey,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isBatteryLevelKnown ? '$batteryLevel%' : 'N/A',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isBatteryLevelKnown
-                            ? batteryHelper.getBatteryColor(batteryLevel!)
-                            : Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 4),
-              ],
-            ),
-
-            IconButton(
-              icon: const Icon(Icons.tire_repair_outlined),
-              onPressed: _handleTireChange,
-              tooltip: 'Změna sady kol',
-            ),
-          ],
-        ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final double statCardHeight = constraints.maxHeight * 0.1;
-            final double statCardWidth = constraints.maxWidth * 0.4;
-            final double timerFontSize = constraints.maxHeight * 0.08;
-            final double lapFontSize = constraints.maxHeight * 0.04;
-
-            return Center(
-              child: Column(
-                children: [
-                  const SizedBox(height: 24),
-                  // Timer display
-                  Text(
-                    TimeFormatters.formattedStopwatchTime(stopwatch),
-                    style: TextStyle(
-                      fontSize: timerFontSize,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Lap time display
-                  Text(
-                    lapTimes.length > 1
-                        ? (lapTimes.last == fastestLap
-                            ? lapTimes.last.toStringAsFixed(2)
-                            : (lapTimes.last - fastestLap!).toStringAsFixed(2))
-                        : '',
-                    style: TextStyle(
-                      fontSize: lapFontSize,
-                      fontWeight: FontWeight.w600,
-                      color: _getLapTimeColor(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Statistics grid (responsive)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        statCard.buildStatCard(
-                          context: context,
-                          title: 'Poslední kolo',
-                          value: lapTimes.isNotEmpty
-                              ? lapTimes.last.toStringAsFixed(3)
-                              : '0:00.000',
-                          height: statCardHeight,
-                          width: statCardWidth,
-                        ),
-                        statCard.buildStatCard(
-                          context: context,
-                          title: 'Nejrychlejší kolo',
-                          value: fastestLap != null
-                              ? fastestLap!.toStringAsFixed(3)
-                              : '0:00.000',
-                          valueColor: Colors.green,
-                          height: statCardHeight,
-                          width: statCardWidth,
-                        ),
-                        statCard.buildStatCard(
-                          context: context,
-                          title: 'Kol na sadě',
-                          value: lapsOnTires.toString(),
-                          height: statCardHeight,
-                          width: statCardWidth,
-                        ),
-                        statCard.buildStatCard(
-                          context: context,
-                          title: 'Aktuální kolo',
-                          value: '$completedLaps / $numberOfLaps',
-                          height: statCardHeight,
-                          width: statCardWidth,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Lap time table
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: size.height * 0.3,
-                    ),
-                    child: Container(
-                      width: size.width * 0.9,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.tertiary,
-                        borderRadius: BorderRadius.circular(8.0),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.shadowColor
-                                .withAlpha((0.3 * 255).toInt()),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: LapTimeTable(
-                        lapTimes: lapTimes,
-                        scrollController: _scrollController,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  // STOP button and location aligned to the bottom
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            dnf = true;
-                            _endRace();
-                          },
-                          onLongPress: registerLap,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            padding:
-                                EdgeInsets.all(constraints.maxWidth * 0.08),
-                            shape: const CircleBorder(),
-                          ),
-                          child: const Text(
-                            'STOP',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'Aktuální pozice: $currentLatitude, $currentLongitude',
-                          style: TextStyle(
-                            fontSize: constraints.maxHeight * 0.02,
-                            color: theme.colorScheme.onSurface
-                                .withAlpha((0.7 * 255).toInt()),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
                   ),
                 ],
               ),
-            );
-          },
-        ),
+              const SizedBox(width: 4),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.tire_repair_outlined),
+            onPressed: _handleTireChange,
+            tooltip: 'Změna sady kol',
+          ),
+        ],
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final double statCardHeight = constraints.maxHeight * 0.1;
+          final double statCardWidth = constraints.maxWidth * 0.4;
+          final double timerFontSize = constraints.maxHeight * 0.08;
+
+          return Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 24),
+                Text(
+                  TimeFormatters.formattedStopwatchTime(stopwatch),
+                  style: TextStyle(
+                    fontSize: timerFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                    letterSpacing: 2.0,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      statCard.buildStatCard(
+                        context: context,
+                        title: 'Poslední kolo',
+                        value: lapTimes.isNotEmpty
+                            ? TimeFormatters.formatLapTimeToTable(lapTimes.last)
+                            : '0:00.00',
+                        valueColor: _getLapTimeColor(),
+                        height: statCardHeight,
+                        width: statCardWidth,
+                      ),
+                      statCard.buildStatCard(
+                        context: context,
+                        title: 'Nejrychlejší kolo',
+                        value: fastestLap != null
+                            ? TimeFormatters.formatLapTimeToTable(fastestLap!)
+                            : '0:00.00',
+                        valueColor: Colors.green,
+                        height: statCardHeight,
+                        width: statCardWidth,
+                      ),
+                      statCard.buildStatCard(
+                        context: context,
+                        title: 'Kol na sadě',
+                        value: lapsOnTires.toString(),
+                        height: statCardHeight,
+                        width: statCardWidth,
+                      ),
+                      statCard.buildStatCard(
+                        context: context,
+                        title: 'Aktuální kolo',
+                        value: '$completedLaps / $numberOfLaps',
+                        height: statCardHeight,
+                        width: statCardWidth,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Expanded(
+                  child: Container(
+                    width: size.width * 0.9,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.tertiary,
+                      borderRadius: BorderRadius.circular(8.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              theme.shadowColor.withAlpha((0.3 * 255).toInt()),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: LapTimeTable(
+                      lapTimes: lapTimes,
+                      scrollController: _scrollController,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      dnf = true;
+                      _endRace();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      padding: EdgeInsets.all(constraints.maxWidth * 0.08),
+                      shape: const CircleBorder(),
+                    ),
+                    child: const Text(
+                      'STOP',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Aktuální pozice: '
+                    '${currentLatitude.toStringAsFixed(7)}, '
+                    '${currentLongitude.toStringAsFixed(7)}',
+                    style: TextStyle(
+                      fontSize: constraints.maxHeight * 0.02,
+                      color: theme.colorScheme.onSurface
+                          .withAlpha((0.7 * 255).toInt()),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, date
+from typing import Optional, List, Dict
 from pydantic import BaseModel
 
 class WebRegisterResponseModel(BaseModel):
@@ -39,6 +39,8 @@ class DriverRacesResponseModel(BaseModel):
     date: Optional[datetime]  # Může být buď datetime nebo None
     location: str
     event_phase_id: int
+    dnf: bool
+    finished: bool
 class RaceDetailResponseModel(BaseModel):
     id: int
     name: str
@@ -69,9 +71,10 @@ class DriverResponseModel(BaseModel):
     street: str
     postcode: str
     birth_date: str
-    phone: str
+    phone: Optional[str]
     email: str
     number: str
+    web_user: str
     racebox_id: Optional[int]
 class RaceboxResponseModel(BaseModel):
     id: int
@@ -97,31 +100,33 @@ class CarConfigurationResponseModel(BaseModel):
     power: int
     weight: int
     power_weight_ratio: float
-    aero_upgrade: int
+    aero_upgrade: float
     excessive_modifications: int
-    excessive_chamber: int
+    excessive_chamber: float
     liquid_leakage: int
     rear_lights: int
     safe: int
-    street_legal_tires: int
-    seat_seatbelt_cage: int
-    widebody: int
-    wide_tires: int
+    street_legal_tires: float
+    seat: float
+    seatbelt: float
+    widebody: float
+    wide_tires: float
 class CarConfiguration(BaseModel):
     note: str
     power: int
     weight: int
     power_weight_ratio: float
-    aero_upgrade: int
+    aero_upgrade: float
     excessive_modifications: int
-    excessive_chamber: int
+    excessive_chamber: float
     liquid_leakage: int
     rear_lights: int
     safe: int
-    street_legal_tires: int
-    seat_seatbelt_cage: int
-    widebody: int
-    wide_tires: int
+    street_legal_tires: float
+    seat: float
+    seatbelt: float
+    widebody: float
+    wide_tires: float
 class SeriesResponseModel(BaseModel):
     id: int
     name: str
@@ -165,6 +170,16 @@ class EventResultResponseModel(BaseModel):
     driver_email: str
     number: int
     phase_name: str
+class TrainingQualificationResultResponseModel(BaseModel):
+    position: int
+    points: int
+    number: int
+    name: str
+    surname: str
+    car: str
+    car_class: str
+    best_lap: str
+
 class EventDriverEventResultsResponseModel(BaseModel):
     lap: int
     time: str
@@ -175,7 +190,25 @@ class EventRegistrationsResponseModel(BaseModel):
     car_maker: str
     car_type: str
     car_configuration_id: Optional[int]
+    power_weight_ratio: Optional[float]  # Nově přidané power-weight ratio
+    category_name: Optional[str]  # Nově přidaná kategorie
+    excessive_modifications: float # suma decimal modifikací
     configuration_status: str
+class EventResultsResponseModel(BaseModel):
+    position: int
+    points: int
+    start_number: int
+    dnf: bool
+    finished: bool
+    driver_name: str
+    car: str
+    total_time: str
+    lap_times: List[str]
+
+class EventResultsByCategoryResponseModel(BaseModel):
+    category_id: int
+    category_name: str
+    results: List[EventResultsResponseModel]
 class EventRegistrationDetailResponseModel(BaseModel):
     id: int
     driver_id: int
@@ -229,3 +262,64 @@ class FlagsResponseModel(BaseModel):
     id: int
     name: str
     note: Optional[str]
+class DriverRankingModel(BaseModel):
+    name: str
+    surname: str
+    email: str
+    race_number: int
+    car_category: str
+    points: int
+    web_user: str
+class GroupedSeriesEventResponseModel(BaseModel):
+    series_id: int
+    series_name: str
+    year: int
+    event_id: int
+    event_name: str
+    date: Optional[datetime]
+    location: str
+class EventResultDriverModel(BaseModel):
+    position: int
+    total_time: Optional[str]  # Může být NULL
+    full_name: str
+    web_user: Optional[str]  # Může být NULL
+
+
+class EventResultPhaseModel(BaseModel):
+    event_phase_id: int
+    phase_name: str
+    results: List[EventResultDriverModel]
+
+
+class EventResultCategoryModel(BaseModel):
+    car_category_id: int
+    category_name: str
+    phases: List[EventResultPhaseModel]
+
+
+class EventResultsGroupedResponseModel(BaseModel):
+    status: str
+    message: str
+    data: List[EventResultCategoryModel]
+
+class DriverRankingModel(BaseModel):
+    driver_id: int
+    driver_name: str
+    race_number: str
+    car: str
+    total_points: int
+    races: Dict[str, int]  # { "Malečov - Generated": 18, "Globus circuit": 25 }
+class DriverRankingModelApp(BaseModel):
+    name: str
+    surname: str
+    email: str
+    race_number: int
+    car_category: str
+    points: int
+    web_user: str
+class CategoryRankingModel(BaseModel):
+    category: str
+    drivers: List[DriverRankingModel]
+
+class DetailedDriverRankingsResponseModel(BaseModel):
+    rankings: List[CategoryRankingModel]

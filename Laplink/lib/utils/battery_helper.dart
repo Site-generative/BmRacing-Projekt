@@ -13,7 +13,6 @@ class BatteryHelper {
   bool criticalBatteryWarningShown = false;
   bool canShowWarnings = false;
 
-  /// Zpracování dat o baterii z BLE notifikací
   Future<void> processBatteryData(Uint8List value,
       Function(int) onBatteryLevelUpdated, bool canShowToast) async {
     // Zajistíme, že data mají dostatečnou délku
@@ -33,12 +32,10 @@ class BatteryHelper {
     }
   }
 
-  /// Získání ikony baterie na základě aktuální úrovně
   IconData getBatteryIcon(int batteryLevel, bool isCharging) {
-    // Pokud se nabíjí, můžeš zobrazit speciální ikonu
-    if (isCharging) {
+    /*if (isCharging) {
       return Icons.battery_charging_full;
-    }
+    }*/
     // Jinak vyber ikonu podle stavu kapacity
     if (batteryLevel >= 95) {
       return Icons.battery_full;
@@ -58,7 +55,6 @@ class BatteryHelper {
     }
   }
 
-  /// Získání barvy na základě aktuální úrovně baterie
   Color getBatteryColor(int batteryLevel) {
     if (batteryLevel >= 50) {
       return Colors.green;
@@ -69,7 +65,6 @@ class BatteryHelper {
     }
   }
 
-  /// Zobrazení varování o nízké úrovni baterie
   void showBatteryWarning(String message, LevelOfDanger dangerLevel) {
     Fluttertoast.showToast(
       msg: message,
@@ -83,7 +78,6 @@ class BatteryHelper {
     );
   }
 
-  /// Kontrola a zobrazení varování na základě úrovně baterie
   void checkAndShowBatteryWarnings(int batteryLevel) {
     if (batteryLevel <= 10 && !criticalBatteryWarningShown) {
       criticalBatteryWarningShown = true;

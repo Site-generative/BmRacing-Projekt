@@ -2,12 +2,13 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:laplink/components/bluetooth_device_list.dart';
-import 'package:laplink/pages/race%20pages/race_page.dart';
-import 'package:laplink/pages/race%20pages/training_qualification_page.dart';
-import 'package:laplink/services/bluetooth_service.dart';
-import 'package:laplink/services/preferences_service.dart';
-import 'package:laplink/utils/battery_helper.dart';
+import 'package:bm_racing_app/components/bluetooth_device_list.dart';
+import 'package:bm_racing_app/pages/race%20pages/race_page.dart';
+import 'package:bm_racing_app/pages/race%20pages/training_qualification_page.dart';
+import 'package:bm_racing_app/pages/race%20pages/live_data_page.dart';
+import 'package:bm_racing_app/services/bluetooth_service.dart';
+import 'package:bm_racing_app/services/preferences_service.dart';
+import 'package:bm_racing_app/utils/battery_helper.dart';
 import 'package:lottie/lottie.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -19,7 +20,8 @@ class RaceStartPage extends StatefulWidget {
 }
 
 class _RaceStartPageState extends State<RaceStartPage> {
-  final LaplinkBluetoothService bluetoothService = LaplinkBluetoothService();
+  final bm_racing_appBluetoothService bluetoothService =
+      bm_racing_appBluetoothService();
   final PreferencesService preferencesService = PreferencesService();
   final BatteryHelper batteryHelper = BatteryHelper();
 
@@ -29,15 +31,14 @@ class _RaceStartPageState extends State<RaceStartPage> {
   bool isScanning = false;
   bool isBluetoothEnabled = false;
   bool _navigatingToRacePage = false;
+  bool isConnecting = false; // nová proměnná pro sledování stavu připojování
   StreamSubscription<BluetoothAdapterState>? bluetoothStateSubscription;
   Timer? disconnectTimer;
 
-  /// Baterie
   int batteryLevel = 100;
   bool isCharging = false;
   bool isBatteryLevelKnown = false;
 
-  /// Další proměnné
   int? eventPhaseId;
   int? raceId;
   List<int> buffer = [];
@@ -45,9 +46,6 @@ class _RaceStartPageState extends State<RaceStartPage> {
   String rawPacket = "";
   late StreamSubscription<List<int>> _notificationSubscription;
   bool canCheckBattery = false;
-
-  /// 1) CHANGES: Přidaná proměnná určující, zda zrovna probíhá připojování
-  bool isConnecting = false;
 
   @override
   void initState() {
@@ -92,9 +90,6 @@ class _RaceStartPageState extends State<RaceStartPage> {
     });
   }
 
-  /// -------------------------------------------------
-  /// Zde zpracováváš data z Rx characteristic
-  /// -------------------------------------------------
   void _processData() {
     if (buffer.length < 8) return;
 
@@ -131,7 +126,7 @@ class _RaceStartPageState extends State<RaceStartPage> {
     if (payload.isEmpty) return;
 
     bool charging = (payload[67] & 0x80) != 0;
-    int currentBatteryLevel = payload[67] & 0x7F; // spodních 7 bitů je level
+    int currentBatteryLevel = payload[67] & 0x7F;
 
     setState(() {
       isCharging = charging;
@@ -163,6 +158,28 @@ class _RaceStartPageState extends State<RaceStartPage> {
     return ckA == packet[length - 2] && ckB == packet[length - 1];
   }
 
+  int _getUint32(Uint8List data, int offset) {
+    return data[offset] |
+        (data[offset + 1] << 8) |
+        (data[offset + 2] << 16) |
+        (data[offset + 3] << 24);
+  }
+
+  int _getUint16(Uint8List data, int offset) {
+    return data[offset] | (data[offset + 1] << 8);
+  }
+
+  int _getInt32(Uint8List data, int offset) {
+    return data[offset] |
+        (data[offset + 1] << 8) |
+        (data[offset + 2] << 16) |
+        (data[offset + 3] << 24);
+  }
+
+  int _getInt16(Uint8List data, int offset) {
+    return data[offset] | (data[offset + 1] << 8);
+  }
+
   Future<void> _startScan() async {
     if (!isBluetoothEnabled) {
       _showMessage('Bluetooth není zapnuto.');
@@ -178,33 +195,36 @@ class _RaceStartPageState extends State<RaceStartPage> {
     });
   }
 
-  /// 2) CHANGES: Připojování nastavíme `isConnecting = true`,
-  /// ať víme, že probíhá connect a můžeme zobrazit loader
   Future<void> _connectToDevice(BluetoothDevice device) async {
+    // Nastavíme, že probíhá pokus o připojení (může se využít např. pro změnu UI tlačítka)
     setState(() {
       isConnecting = true;
     });
 
-    // Pokud už je nějaké zařízení připojené, nejprve se odpojíme
+    // Pokud již je nějaké zařízení připojeno, odpojíme ho
     if (connectedDevice != null) {
       await _disconnectDevice();
     }
 
     try {
       txCharacteristic = await bluetoothService.connectToDevice(device);
-
       if (txCharacteristic != null) {
         setState(() {
           connectedDevice = device;
           isBatteryLevelKnown = false;
-          // 3) CHANGES: Úspěšné připojení -> isConnecting = false
-          isConnecting = false;
+          isConnecting = false; // připojení proběhlo úspěšně
         });
+
+        // Uložíme propojený RaceBox pro daný event
+        final prefs = await PreferencesService.getPreferences();
+        await prefs.setString('last_connected_device_id', device.id.toString());
+        if (raceId != null) {
+          await prefs.setInt('last_connected_race_id', raceId!);
+        }
 
         _startDisconnectTimer();
         _showMessage('Připojeno k ${device.platformName}');
 
-        /// Odebírání notifikací
         _notificationSubscription =
             txCharacteristic!.lastValueStream.listen((data) {
           buffer.addAll(data);
@@ -217,18 +237,19 @@ class _RaceStartPageState extends State<RaceStartPage> {
           });
         });
       } else {
-        // Pokud se nepodařilo připojit
+        // Připojení se nezdařilo – vrátíme tlačítko do původního stavu a opět načteme zařízení
         setState(() {
           isConnecting = false;
         });
         _showMessage('Nepodařilo se připojit k ${device.platformName}');
+        _startScan();
       }
     } catch (e) {
-      // Pokud došlo k chybě:
       setState(() {
         isConnecting = false;
       });
       _showMessage('Chyba při připojování: $e');
+      _startScan();
     }
   }
 
@@ -262,6 +283,7 @@ class _RaceStartPageState extends State<RaceStartPage> {
       setState(() {
         _navigatingToRacePage = true;
       });
+
       _navigateToPhase();
     } else {
       _showMessage('Zařízení není připojeno.');
@@ -393,55 +415,29 @@ class _RaceStartPageState extends State<RaceStartPage> {
                 textAlign: TextAlign.center,
               )
             else
-
-              /// Zde se renderuje seznam zařízení a tlačítka "Connect"
               BluetoothDeviceList(
                 devices: devicesList,
                 onConnect: _connectToDevice,
+                // Pokud váš widget podporuje parametr pro indikaci stavu připojování, můžete sem předat i `isConnecting`
               ),
-
             const SizedBox(height: 16),
-
-            /// 4) CHANGES: Tlačítko "Odstartovat Jízdu!" se zobrazí jen,
-            /// když je nějaké zařízení připojené. Loader se přidá JEN vedle textu.
             if (connectedDevice != null)
               ElevatedButton(
-                // Až v momentě, kdy isConnecting == false, to může zavolat _startRace
-                onPressed: isConnecting ? null : _startRace,
+                onPressed: _startRace,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20.0,
-                    vertical: 12.0,
-                  ),
+                      horizontal: 20.0, vertical: 12.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25.0),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Zachováme původní text beze změny
-                    const Text(
-                      'Odstartovat Jízdu!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                    // Pokud je isConnecting, zobrazíme malý loader vedle textu
-                    if (isConnecting) ...[
-                      const SizedBox(width: 12),
-                      const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.0,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ],
+                child: Text(
+                  'Odstartovat Jízdu!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
                 ),
               ),
           ],

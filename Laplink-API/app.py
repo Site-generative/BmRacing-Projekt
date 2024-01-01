@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from routes import login, events, drivers, series, phases, cars, laps, registrations, car_categories, raceboxes, points_definitions, statistics, flags
+from routes import login,phase_results, events, drivers, results, series, phases, cars, laps, registrations, car_categories, raceboxes, points_definitions, statistics, flags
 from concurrent.futures import ThreadPoolExecutor
 
 app = FastAPI(
@@ -38,4 +38,6 @@ app.include_router(car_categories.router, prefix="/car-categories", tags=["Car C
 app.include_router(raceboxes.router, prefix="/raceboxes", tags=["Raceboxes"])
 app.include_router(points_definitions.router, prefix="/points-definitions", tags=["Points Definitions"])
 app.include_router(statistics.router, prefix="/statistics", tags=["Statistics"])
-app.include_router(flags.router, prefix="/flags", tags=["Flags"])
+app.include_router(phase_results.router, prefix="/phase-results", tags=["Phase Results"])
+app.include_router(results.router, prefix="/results", tags=["Results"])
+#app.include_router(flags.router, prefix="/flags", tags=["Flags"])

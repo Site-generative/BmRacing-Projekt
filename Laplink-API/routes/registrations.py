@@ -3,10 +3,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security.api_key import APIKey
 from fastapi.responses import JSONResponse
 from db.connection import prioritized_get_db_connection
-from response_models.response_models import GetAllEventRegistrations, PostResponseModel, EventRegistrationFillData, EventRegistrationResponseModel, EventRegistrationsResponseModel, GetAllEventRegistrationsWithIds
+from response_models.response_models import GetAllEventRegistrations, DeleteResponseModel,PostResponseModel, EventRegistrationFillData, EventRegistrationResponseModel, EventRegistrationsResponseModel, GetAllEventRegistrationsWithIds
 from response_models.commonTypes import RegisterDriverToEvent
 import service.auth as auth
-from utilities import formatting
+from decimal import Decimal
 
 router = APIRouter()
 
@@ -85,21 +85,35 @@ async def get_event_registrations(event_id: int, api_key: APIKey = Depends(auth.
                 c.maker AS car_maker,
                 c.type AS car_type,
                 er.car_configuration_id,
+                cc.power_weight_ratio AS power_weight_ratio,
+                cat.name AS category_name,
+                SUM(cc.aero_upgrade + cc.excessive_chamber + cc.widebody + 
+                    cc.street_legal_tires + cc.wide_tires + cc.seat + cc.seatbelt) * 1000 
+                    AS excessive_modifications,
                 CASE 
-                    WHEN cc.id IS NOT NULL THEN 'Konfigurace k dispozici'
-                    ELSE 'Konfigurace není k dispozici'
+                    WHEN cc.id IS NOT NULL THEN 'ANO'
+                    ELSE 'NE'
                 END AS configuration_status
             FROM 
                 event_registration er
             JOIN driver d ON er.driver_id = d.id
             JOIN car c ON er.car_id = c.id
             LEFT JOIN car_configuration cc ON er.car_configuration_id = cc.id
+            LEFT JOIN car_category cat ON er.car_category_id = cat.id
             WHERE 
-                er.event_id = %s;
+                er.event_id = %s
+             group by er.id;
         """
 
         cursor.execute(query, (event_id,))
         event_registrations = cursor.fetchall()
+
+        # **Konverze Decimal hodnot na float**
+        for reg in event_registrations:
+            if isinstance(reg.get("power_weight_ratio"), Decimal):
+                reg["power_weight_ratio"] = float(reg["power_weight_ratio"])
+            if isinstance(reg.get("excessive_modifications"), Decimal):
+                reg["excessive_modifications"] = float(reg["excessive_modifications"])
 
         return JSONResponse(content={"data": event_registrations})
     except Exception as e:
@@ -163,6 +177,7 @@ async def get_event_registrations_with_ids(event_id: int, api_key: APIKey = Depe
     '''
         Vrací všechny registrace na závod podle jeho ID.
     '''
+
     db_connection = prioritized_get_db_connection(priority="low")
     cursor = db_connection.cursor(dictionary=True)
 
@@ -172,6 +187,24 @@ async def get_event_registrations_with_ids(event_id: int, api_key: APIKey = Depe
         return event_registrations
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching event registrations: {e}")
+    finally:
+        cursor.close()
+        db_connection.close()
+
+@router.delete("/delete/event-registration/{registration_id}", response_model=DeleteResponseModel)
+async def delete_event_registration(registration_id: int, api_key: APIKey = Depends(auth.get_api_key)):
+    db_connection = prioritized_get_db_connection(priority="low")
+    cursor = db_connection.cursor()
+
+    try:
+        command = "CALL DeleteEventRegistration(%s);"
+        cursor.execute(command, (registration_id,))
+
+        db_connection.commit()
+        return JSONResponse(content={"status": "success", "message": "Event registration deleted successfully"})
+    except Exception as e:
+        db_connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting event registration: {e}")
     finally:
         cursor.close()
         db_connection.close()

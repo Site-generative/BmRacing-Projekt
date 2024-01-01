@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:laplink/services/api_service.dart';
+import 'package:bm_racing_app/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import 'package:lottie/lottie.dart';
 
 class ResultsPage extends StatelessWidget {
   final String webUser;
@@ -60,10 +61,12 @@ class ResultsPage extends StatelessWidget {
           future: _getRaceDetails(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
+              // Zobrazení Lottie animace místo CircularProgressIndicator
               return Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.primary),
+                child: Lottie.asset(
+                  'assets/loading.json',
+                  width: 150,
+                  height: 150,
                 ),
               );
             } else if (snapshot.hasError) {
@@ -98,10 +101,12 @@ class ResultsPage extends StatelessWidget {
           raceDetails['web_user'], raceId, phaseId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
+          // Zobrazení Lottie animace místo CircularProgressIndicator
           return Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary),
+            child: Lottie.asset(
+              'assets/loading.json',
+              width: 150,
+              height: 150,
             ),
           );
         } else if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
@@ -219,6 +224,7 @@ class ResultsPage extends StatelessWidget {
             Center(
               child: Text(
                 'Nejrychlejší kolo: Kolo $fastestLapIndex - ${fastestLap['time']}',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -230,6 +236,7 @@ class ResultsPage extends StatelessWidget {
             Center(
               child: Text(
                 'Celkový čas: $totalTime',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

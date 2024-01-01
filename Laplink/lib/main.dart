@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:laplink/pages/login_page.dart';
-import 'package:laplink/models/race_state.dart';
-import 'package:laplink/provider/theme_provider.dart';
+import 'package:bm_racing_app/pages/login_page.dart';
+import 'package:bm_racing_app/models/race_state.dart';
+import 'package:bm_racing_app/provider/theme_provider.dart';
 
-void main() {
+// Globální RouteObserver, který se využije pro sledování změn tras (navigace)
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Povolení pouze svislé orientace
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
   runApp(
     MultiProvider(
       providers: [
@@ -24,22 +33,23 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
-      title: 'Laplink',
+      title: 'BM Racing App',
+      navigatorObservers: [routeObserver], // Přidání RouteObserver
       themeMode: themeProvider.themeMode,
       theme: ThemeData(
         brightness: Brightness.light,
         useMaterial3: true,
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFFDC2626), // Světle růžová tlačítka
-          onPrimary: Color(0xFFF5F5F5), // Bílý text na tlačítkách
-          secondary: Color(0xFF000000), // Černé ikony
-          onSurface: Colors.black, // Černý text na povrchu
-          surface: Colors.white, // Světle šedé pozadí
+          primary: Color(0xFFDC2626),
+          onPrimary: Color(0xFFF5F5F5),
+          secondary: Color(0xFF000000),
+          onSurface: Colors.black,
+          surface: Colors.white,
           tertiary: Color(0xFF2C2C2E),
           onTertiary: Color(0xFFF5F5F5),
           onSecondary: Color(0xFFFFFFFF),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F5F5), // Bílé pozadí
+        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
         textTheme: const TextTheme(
           titleLarge: TextStyle(
             fontSize: 36,
@@ -53,8 +63,8 @@ class MyApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFFF5F5F5), // Světle šedé pozadí pro input
-          prefixIconColor: const Color(0xFF000000), // Černé ikony
+          fillColor: const Color(0xFFF5F5F5),
+          prefixIconColor: const Color(0xFF000000),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30),
             borderSide: BorderSide.none,
@@ -70,15 +80,16 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.dark,
         useMaterial3: true,
         colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFDC2626), // Tmavě červená tlačítka
-            onPrimary: Colors.white, // Bílý text na tlačítkách
-            secondary: Colors.white, // Bílé texty
-            onSurface: Colors.white, // Bílé texty
-            surface: Color(0xFF2C2C2E), // Tmavé pozadí inputů
-            tertiary: Color(0xFF2C2C2E),
-            onTertiary: Color(0xFF1C1C1E),
-            onSecondary: Color(0xFF2C2C2E)),
-        scaffoldBackgroundColor: const Color(0xFF1C1C1E), // Tmavé pozadí
+          primary: Color(0xFFDC2626),
+          onPrimary: Colors.white,
+          secondary: Colors.white,
+          onSurface: Colors.white,
+          surface: Color(0xFF2C2C2E),
+          tertiary: Color(0xFF2C2C2E),
+          onTertiary: Color(0xFF1C1C1E),
+          onSecondary: Color(0xFF2C2C2E),
+        ),
+        scaffoldBackgroundColor: const Color(0xFF1C1C1E),
         textTheme: const TextTheme(
           titleLarge: TextStyle(
             fontSize: 36,
@@ -92,8 +103,8 @@ class MyApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF2C2C2E), // Tmavé pozadí pro input
-          prefixIconColor: Colors.white70, // Bílé ikony
+          fillColor: const Color(0xFF2C2C2E),
+          prefixIconColor: Colors.white70,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30),
             borderSide: BorderSide.none,

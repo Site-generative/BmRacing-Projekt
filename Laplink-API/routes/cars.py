@@ -7,10 +7,9 @@ from decimal import Decimal
 
 from db.connection import prioritized_get_db_connection
 from response_models.response_models import CarResponseModel, CarConfigurationResponseModel, PostResponseModel, \
-    PostResponseReturnIdModel, CarModel, PutResponseModel, CarConfiguration
+    PostResponseReturnIdModel, CarModel, PutResponseModel, CarConfiguration, DeleteResponseModel
 from response_models.commonTypes import CreateCar, CreateCarConfiguration
 import service.auth as auth
-from utilities import formatting
 
 router = APIRouter()
 
@@ -52,14 +51,15 @@ async def create_car_configuration(data: CreateCarConfiguration, api_key: APIKey
 
         command = """
             INSERT INTO car_configuration 
-            (note, power, weight, power_weight_ratio, aero_upgrade, excessive_modifications, excessive_chamber, 
-            liquid_leakage, rear_lights, safe, street_legal_tires, seat_seatbelt_cage, widebody, wide_tires) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            (note, power, weight, power_weight_ratio, aero_upgrade, excessive_modifications, excessive_chamber, liquid_leakage, rear_lights, safe, street_legal_tires, seat, seatbelt, widebody, wide_tires) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
         """
         cursor.execute(command, (
-            data.note, data.power, data.weight, data.power_weight_ratio, data.aero_upgrade,
-            data.excessive_modifications, data.excessive_chamber, data.liquid_leakage, data.rear_lights,
-            data.safe, data.street_legal_tires, data.seat_seatbelt_cage, data.widebody, data.wide_tires
+            data.note, data.power, data.weight, data.power_weight_ratio,
+            data.aero_upgrade, data.excessive_modifications,
+            data.excessive_chamber, data.liquid_leakage, data.rear_lights,
+            data.safe, data.street_legal_tires, data.seat,
+            data.seatbelt, data.widebody, data.wide_tires
         ))
 
         command = """SELECT LAST_INSERT_ID();"""
@@ -196,8 +196,8 @@ async def update_car_configuration(car_configuration_id: int, car_configuration_
 
     try:
         command = """UPDATE car_configuration 
-                     set note = %s, power = %s, weight = %s, power_weight_ratio = %s, aero_upgrade = %s, excessive_modifications = %s, excessive_chamber = %s, liquid_leakage = %s, rear_lights = %s, safe = %s, street_legal_tires = %s, seat_seatbelt_cage = %s, widebody = %s, wide_tires = %s where id = %s"""
-        values=(car_configuration_data.note, car_configuration_data.power, car_configuration_data.weight, car_configuration_data.power_weight_ratio, car_configuration_data.aero_upgrade, car_configuration_data.excessive_modifications, car_configuration_data.excessive_chamber, car_configuration_data.liquid_leakage, car_configuration_data.rear_lights, car_configuration_data.safe, car_configuration_data.street_legal_tires, car_configuration_data.seat_seatbelt_cage, car_configuration_data.widebody, car_configuration_data.wide_tires, car_configuration_id)
+                     set note = %s, power = %s, weight = %s, power_weight_ratio = %s, aero_upgrade = %s, excessive_modifications = %s, excessive_chamber = %s, liquid_leakage = %s, rear_lights = %s, safe = %s, street_legal_tires = %s, seat = %s, seatbelt = %s, widebody = %s, wide_tires = %s where id = %s"""
+        values=(car_configuration_data.note, car_configuration_data.power, car_configuration_data.weight, car_configuration_data.power_weight_ratio, car_configuration_data.aero_upgrade, car_configuration_data.excessive_modifications, car_configuration_data.excessive_chamber, car_configuration_data.liquid_leakage, car_configuration_data.rear_lights, car_configuration_data.safe, car_configuration_data.street_legal_tires, car_configuration_data.seat, car_configuration_data.seatbelt, car_configuration_data.widebody, car_configuration_data.wide_tires, car_configuration_id)
         cursor.execute(command, values)
         db_connection.commit()
 
@@ -207,6 +207,23 @@ async def update_car_configuration(car_configuration_id: int, car_configuration_
         return JSONResponse(content={"status": "success", "message": "Car configuration updated successfully"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
+    finally:
+        cursor.close()
+        db_connection.close()
+@router.delete("/delete/car/{car_id}", response_model=DeleteResponseModel)
+async def delete_car(car_id: int, api_key: APIKey = Depends(auth.get_api_key)):
+    db_connection = prioritized_get_db_connection(priority="low")
+    cursor = db_connection.cursor()
+
+    try:
+        command = "CALL DeleteCar(%s);"
+        cursor.execute(command, (car_id,))
+
+        db_connection.commit()
+        return JSONResponse(content={"status": "success", "message": "Car and all associated data deleted successfully"})
+    except Exception as e:
+        db_connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting car: {e}")
     finally:
         cursor.close()
         db_connection.close()

@@ -74,7 +74,7 @@ async def authenticate_app_user(user: AppUserAuthenticate, api_key: APIKey = Dep
         stored_password = result[0]
 
         if not sha256_crypt.verify(user.web_password, stored_password):
-            raise HTTPException(status_code=400, detail="Invalid username or password")
+            raise HTTPException(status_code=401, detail="Invalid username or password")
 
         return {"message": "Authentication successful"}
     except Exception as err:
@@ -176,6 +176,39 @@ async def delete_user(user_id: int, api_key: APIKey = Depends(auth.get_api_key))
     except Exception as err:
         db_connection.rollback()
         raise HTTPException(status_code=500, detail=f"Error deleting user: {err}")
+    finally:
+        cursor.close()
+        db_connection.close()
+
+@router.put("/change/driver/password/", response_model=PostResponseModel)
+async def change_driver_password(driver_id: int, password: str, api_key: APIKey = Depends(auth.get_api_key)):
+    '''
+        Změní heslo uživatele podle jeho ID.
+    '''
+    db_connection = prioritized_get_db_connection(priority="high")
+    cursor = db_connection.cursor()
+
+    hashed_password = sha256_crypt.hash(password)
+    try:
+        command = """
+            UPDATE driver
+            SET web_password = %s
+            WHERE id = %s
+        """
+        values = (
+            hashed_password, driver_id
+        )
+
+        cursor.execute(command, values)
+        db_connection.commit()
+
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Driver not found or no changes made")
+
+        return {"status": "Password changed successfully", "message": f"Driver with ID {driver_id} password changed"}
+    except Exception as err:
+        db_connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error changing driver password: {err}")
     finally:
         cursor.close()
         db_connection.close()

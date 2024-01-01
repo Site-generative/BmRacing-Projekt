@@ -6,7 +6,6 @@ from db.connection import prioritized_get_db_connection
 from response_models.response_models import PostResponseModel, CarCategoryResponseModel
 from response_models.commonTypes import CreateCarCategory, CarCategory
 import service.auth as auth
-from utilities import formatting
 
 router = APIRouter()
 
@@ -41,8 +40,6 @@ async def get_car_categories(api_key: APIKey = Depends(auth.get_api_key)):
     try:
         cursor.execute("SELECT * FROM car_category;")
         result = cursor.fetchall()
-        print(result)
-        #formatted_result = [formatting.get_formated_car_category(row) for row in result]
 
         return JSONResponse(content={"data": result})
     except Exception as e:

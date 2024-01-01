@@ -11,10 +11,10 @@ import re
 router = APIRouter()
 
 def validate_time(time_str: str) -> str:
-    # Regex pro validaci formátu HH:MM:SS.mmm
-    time_pattern = re.compile(r'^\d{2}:\d{2}:\d{2}\.\d{3}$')
+    # Regex pro validaci formátu HH:MM:SS.mm
+    time_pattern = re.compile(r'^\d{2}:\d{2}:\d{2}\.\d{2}$')
     if not time_pattern.match(time_str):
-        raise ValueError("Invalid time format. Expected format is HH:MM:SS.mmm")
+        raise ValueError("Invalid time format. Expected format is HH:MM:SS.mm")
     return time_str
 
 @router.post("/event/lap/data", response_model=PostResponseModel)
@@ -81,7 +81,7 @@ async def get_event_results(event_id: int, event_phase_id: int, api_key: APIKey 
         cursor.execute(command, values)
         result = cursor.fetchall()
 
-        if not result:
+        if not result or len(result) == 0:
             raise HTTPException(status_code=404, detail="Event results not found")
         return result
     except Exception as e:

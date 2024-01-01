@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:laplink/services/api_service.dart';
-import 'package:laplink/pages/menu_race_page.dart';
+import 'package:bm_racing_app/services/api_service.dart';
+import 'package:bm_racing_app/pages/menu_race_page.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,6 +26,10 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _checkForSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
+
+    //await prefs.setString('web_user', 'dominik');
+    //await prefs.setString('web_password', 'vins');
+
     final webUser = prefs.getString('web_user');
     final webPassword = prefs.getString('web_password');
 
@@ -64,22 +68,15 @@ class _LoginPageState extends State<LoginPage> {
       await apiClient.initialize();
 
       try {
-        print("zde");
-        final username = await apiClient
-            .getUserInfo(_webUserController.text)
-            .catchError((error) => print(error));
         final value = await apiClient.login(
           _webUserController.text,
           _passwordController.text,
         );
 
-        print('$username a $value');
-        if (value && username != null) {
+        if (value) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('web_user', _webUserController.text);
           await prefs.setString('web_password', _passwordController.text);
-          await prefs.setInt('driverId', username['id']);
-          print(username['id']);
 
           Navigator.pushReplacement(
             context,
