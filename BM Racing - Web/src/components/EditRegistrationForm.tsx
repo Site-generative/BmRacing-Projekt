@@ -36,6 +36,9 @@ const EditRegistrationForm = () => {
   const { id } = useParams<{ id: string }>();
   const [currentDriverId, setCurrentDriverId] = useState<number | null>(null);
   const [isEditConfigurationOpen, setIsEditConfigurationOpen] = useState(false);
+  const [power_weight_ratio, setPower_weight_ratio] = useState<number | null>(null);
+  const [categoryConfirmed, setCategoryConfirmed] = useState(false);
+  const [configurationChanged, setConfigurationChanged] = useState(false);
 
   useEffect(() => {
     const fetchRegistrations = async () => {
@@ -72,9 +75,18 @@ const EditRegistrationForm = () => {
     setCarId(id);
   };
 
-  const handleConfigurationCreated = (id: number) => {
+  const handleConfigurationCreated = (id: number, power_weight_ratio: number) => {
     setConfigurationId(id);
+    setPower_weight_ratio(power_weight_ratio);
+    setConfigurationChanged(true);
   }
+
+  const handleConfigurationEdited = (id: number, power_weight_ratio: number) => {
+    setConfigurationId(id);
+    setIsEditConfigurationOpen(false);
+    setPower_weight_ratio(power_weight_ratio);
+    setConfigurationChanged(true);
+  };
 
   const [initialValues] = useState({
     event_id: '',
@@ -211,6 +223,11 @@ const EditRegistrationForm = () => {
     validateOnChange: false,
     validateOnBlur: false,
     onSubmit: async (values) => {
+      if (configurationChanged && !categoryConfirmed) {
+        setSubmitError('Musíte potvrdit, že jste zvolili správnou kategorii auta.');
+        return;
+      }
+
       try {
         const carConfigurationId = values.car_configuration_id && values.car_configuration_id !== '0' ? Number(values.car_configuration_id) : null;
 
@@ -232,7 +249,11 @@ const EditRegistrationForm = () => {
         if (error.response && error.response.data) {
           console.error('Response data:', error.response.data);
         }
-        setSubmitError(error.response?.data?.message || 'Nepodařilo se upravit registraci.');
+        if (error.response?.status === 400 && error.response?.data?.message === 'No changes were made') {
+          setSubmitError('Žádné změny nebyly provedeny.');
+        } else {
+          setSubmitError(error.response?.data?.message || 'Nepodařilo se upravit registraci.');
+        }
       }
     },
     validate: (values) => {
@@ -250,6 +271,13 @@ const EditRegistrationForm = () => {
       }
       if (!values.car_category_id) {
         errors.car_category_id = "Vyberte kategorii auta";
+      }
+      if (!categoryConfirmed && values.car_configuration_id) {
+        errors.categoryConfirmed = "Musíte potvrdit, že jste zvolili správnou kategorii auta.";
+      }
+      if (!categoryConfirmed) {
+        setSubmitError('Musíte potvrdit, že jste zvolili správnou kategorii auta.');
+        return;
       }
 
       return errors;
@@ -337,7 +365,7 @@ const EditRegistrationForm = () => {
                 <path fill="#ef4444" d="M376.6 84.5c11.3-13.6 9.5-33.8-4.1-45.1s-33.8-9.5-45.1 4.1L192 206 56.6 43.5C45.3 29.9 25.1 28.1 11.5 39.4S-3.9 70.9 7.4 84.5L150.3 256 7.4 427.5c-11.3 13.6-9.5 33.8 4.1 45.1s33.8 9.5 45.1-4.1L192 306 327.4 468.5c11.3 13.6 31.5 15.4 45.1 4.1s15.4-31.5 4.1-45.1L233.7 256 376.6 84.5z"/>
               </svg>
             </button>
-            <EditConfigurationForm route='#' id={Number(formik.values.car_configuration_id)}/>
+            <EditConfigurationForm route='#' id={Number(formik.values.car_configuration_id)} onConfigurationEdited={handleConfigurationEdited}/>
           </div>
         </div>
       )}
@@ -529,6 +557,9 @@ const EditRegistrationForm = () => {
                 </button>
               )}
             </div>
+            <label htmlFor="car_configuration_id" className="text-black text-md font-light">
+                {formik.values.car_configuration_id && power_weight_ratio !== null ? 'Poměr výkonu a hmotnosti: ' + power_weight_ratio : ''}
+            </label>
 
             {formik.errors.car_configuration_id ? (
               <div className="text-red-600">{formik.errors.car_configuration_id}</div>
@@ -574,6 +605,22 @@ const EditRegistrationForm = () => {
               <div className="text-red-600">{formik.errors.finished}</div>
             ) : null}
             </div>
+
+          {configurationChanged && (
+              <div className="flex items-center justify-center my-3 font-body font-light">
+                  <input
+                      type="checkbox"
+                      id="categoryConfirmed"
+                      name="categoryConfirmed"
+                      checked={categoryConfirmed}
+                      onChange={(e) => setCategoryConfirmed(e.target.checked)}
+                      className="mr-2"
+                  />
+                  <label htmlFor="categoryConfirmed" className="text-black">
+                      Potvrzuji, že jsem zvolil správnou kategorii auta
+                  </label>
+              </div>
+          )}
 
           <div className="flex justify-center font-body my-6">
             <button

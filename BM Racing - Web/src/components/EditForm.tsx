@@ -6,7 +6,7 @@ import { CreateEvent, Phases, Series } from "../utils/commonTypes";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
 
-const FILE_SIZE = 1024 * 1024; // 1MB
+const FILE_SIZE = 1024 * 1024;
 const SUPPORTED_FORMATS = [
   "image/jpg",
   "image/jpeg",
@@ -17,6 +17,14 @@ const SUPPORTED_FORMATS = [
 interface EditFormProps {
   id: string | null;
 }
+
+const formatDate = (date : any) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = (`0${d.getMonth() + 1}`).slice(-2);
+  const day = (`0${d.getDate()}`).slice(-2);
+  return `${year}-${month}-${day}`;
+};
 
 const EditForm: React.FC<EditFormProps> = ({ id }) => {
   const [phases, setPhases] = useState<Phases[]>([]);
@@ -88,7 +96,6 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
         }));
         setPhases(phasesData);
   
-        // Ensure the phase from fetched data is selected
         setInitialValues((prevValues) => ({
           ...prevValues,
           event_phase_id: prevValues.event_phase_id || phasesData[0]?.id.toString(),
@@ -110,7 +117,6 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
         }));
         setSeries(seriesData);
   
-        // Ensure the series from fetched data is selected
         setInitialValues((prevValues) => ({
           ...prevValues,
           series_id: prevValues.series_id || seriesData[0]?.id.toString(),
@@ -133,36 +139,44 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
     validateOnBlur: false,
     onSubmit: async (values) => {
       try {
-        const localDate = new Date(values.date.replace(' ', 'T'));
-        const offset = localDate.getTimezoneOffset();
-        const adjustedDate = new Date(localDate.getTime() - offset * 60 * 1000);
+        const localDate = new Date(values.date);
+        const formattedDate = localDate.toISOString().split('T')[0];
         const formattedValues: CreateEvent = {
           ...values,
           event_phase_id: Number(values.event_phase_id),
           series_id: Number(values.series_id),
-          date: adjustedDate.toISOString(),
+          date: formattedDate,
         };
 
         delete formattedValues.sameStartFinish;
 
-        console.log(formattedValues);
+        console.log(      
+          'id: '+ Number(id) + '\n',
+          'name: '+ formattedValues.name + '\n',
+          'number_of_laps: '+ formattedValues.number_of_laps + '\n',
+          'date: '+ formattedValues.date + '\n',
+          'location: '+ formattedValues.location + '\n',
+          'start_coordinates: '+ formattedValues.start_coordinates + '\n',
+          'end_coordinates: '+ formattedValues.end_coordinates + '\n',
+          'event_phase_id: '+ formattedValues.event_phase_id + '\n',
+          'series_id: '+ formattedValues.series_id + '\n'
+        )
 
         await api.editEvent(
           Number(id),
           formattedValues.name,
-          formattedValues.number_of_laps,
+          Number(formattedValues.number_of_laps),
           formattedValues.date,
           formattedValues.location,
           formattedValues.start_coordinates,
           formattedValues.end_coordinates,
-          values.image,
-          formattedValues.event_phase_id,
-          formattedValues.series_id
-        );
+          Number(formattedValues.event_phase_id),
+          Number(formattedValues.series_id)
+        );        
 
         toast.success('Závod byl úspěšně upraven!');
 
-        navigate('/home');
+        navigate('/table-races');
 
       } catch (error) {
         setSubmitError('Nepodařilo se vytvořit nový závod.');
@@ -215,7 +229,6 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
     const image = event.currentTarget.files?.[0];
     if (image) {
       formik.setFieldValue("image", image);
-      console.log(image);
     }
   };
 
@@ -276,11 +289,6 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
       }
   };
 
-  useEffect(() => {
-    console.log("start " + formik.values.start_coordinates);
-    console.log("end " + formik.values.end_coordinates);
-  }, [formik.values.start_coordinates, formik.values.end_coordinates]);
-
   return (
     <div className="flex flex-col md:flex-row w-full justify-items-start pl-10">
       {isLoading && (
@@ -297,7 +305,7 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
           </div>
           <div className="flex flex-col font-body my-1">
             <label htmlFor="name" className="text-black">
-              Název
+              Název*
             </label>
             <input
               type="text"
@@ -315,13 +323,13 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
 
           <div className="flex flex-col font-body my-1">
             <label htmlFor="date" className="text-black">
-              Datum (RRRR-MM-DD)
+              Datum*
             </label>
             <input
-              type="text"
+              type="date"
               id="date"
               name="date"
-              onChange={formik.handleChange}
+              onChange={(e) => formik.setFieldValue('date', formatDate(e.target.value))}
               value={formik.values.date}
               className="rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
               placeholder="např. 2024-08-01"
@@ -333,7 +341,7 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
 
           <div className="flex flex-col font-body my-1">
             <label htmlFor="location" className="text-black">
-              Lokace
+              Lokace*
             </label>
             <input
               type="text"
@@ -351,7 +359,7 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
 
           <div className="flex flex-col font-body my-1">
             <label htmlFor="number_of_laps" className="text-black">
-              Počet kol
+              Počet kol*
             </label>
             <input
               type="number"
@@ -386,7 +394,7 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
 
           <div className="flex flex-col font-body my-1">
             <label htmlFor="start_coordinates" className="text-black">
-              Souřadnice startu
+              Souřadnice startu*
             </label>
             <div className="flex flex-col sm:flex-row">
               <input
@@ -434,7 +442,7 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
 
           <div className="flex flex-col font-body my-1">
             <label htmlFor="finish" className="text-black">
-              Souřadnice cíle
+              Souřadnice cíle*
             </label>
             <div className="flex flex-col sm:flex-row">
               <input
@@ -476,7 +484,7 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
 
           <div className="flex flex-col font-body my-1 custom-select">
             <label htmlFor="event-phase" className="text-black">
-              Fáze závodu
+              Fáze závodu*
             </label>
             <select
               name="event_phase_id"
@@ -503,7 +511,7 @@ const EditForm: React.FC<EditFormProps> = ({ id }) => {
 
           <div className="flex flex-col font-body my-1 custom-select">
             <label htmlFor="event-phase" className="text-black">
-              Série
+              Série*
             </label>
             <select
               name="series_id"

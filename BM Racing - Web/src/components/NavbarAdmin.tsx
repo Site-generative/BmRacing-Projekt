@@ -4,8 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const NavbarAdmin = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCreateDropdownOpen, setIsCreateDropdownOpen] = useState(false);
-  const [isTableDropdownOpen, setIsTableDropdownOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -22,12 +21,8 @@ const NavbarAdmin = () => {
     navigate('/login');
   };
 
-  const toggleCreateDropdown = () => {
-    setIsCreateDropdownOpen(!isCreateDropdownOpen);
-  };
-
-  const toggleTableDropdown = () => {
-    setIsTableDropdownOpen(!isTableDropdownOpen);
+  const toggleDropdown = (dropdown: string) => {
+    setOpenDropdown(openDropdown === dropdown ? null : dropdown);
   };
 
   return (
@@ -46,10 +41,10 @@ const NavbarAdmin = () => {
             </NavLink>
           </li>
           <li className='my-2 lg:my-0 lg:mx-4 relative'>
-            <NavLink to='#' className='text-white font-body font-medium text-sm lg:text-lg whitespace-nowrap hover:text-red-600 duration-150 select-none' onClick={toggleCreateDropdown}>
-              Vytváření {isCreateDropdownOpen ? '▲' : '▼'}
+            <NavLink to='#' className='text-white font-body font-medium text-sm lg:text-lg whitespace-nowrap hover:text-red-600 duration-150 select-none' onClick={() => toggleDropdown('create')}>
+              Vytváření {openDropdown === 'create' ? '▲' : '▼'}
             </NavLink>
-            {isCreateDropdownOpen && (
+            {openDropdown === 'create' && (
               <ul className="absolute left-0 top-full w-max bg-white shadow-lg rounded-md font-body mt-3">
                 <NavLink to='/create-race' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-black font-body'}>
                   <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer rounded-t-md border-b border-b-gray-300">
@@ -70,26 +65,20 @@ const NavbarAdmin = () => {
                 </NavLink>
 
                 <NavLink to='/create-car' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-black font-body'}>
-                  <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer border-b border-b-gray-300">
-                    Auto
-                  </li>
-                </NavLink>
-
-                <NavLink to='/create-registration' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-black font-body'}>
                   <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer rounded-b-md">
-                    Registrace do závodu
+                    Auto
                   </li>
                 </NavLink>
               </ul>
             )}
           </li>
           <li className='my-2 lg:my-0 lg:mx-4 relative'>
-            <NavLink to='#' className='text-white font-body font-medium text-sm lg:text-lg whitespace-nowrap hover:text-red-600 duration-150 select-none' onClick={toggleTableDropdown}>
-              Tabulky {isTableDropdownOpen ? '▲' : '▼'}
+            <NavLink to='#' className='text-white font-body font-medium text-sm lg:text-lg whitespace-nowrap hover:text-red-600 duration-150 select-none' onClick={() => toggleDropdown('table')}>
+            Tabulky {openDropdown === 'table' ? '▲' : '▼'}
             </NavLink>
-            {isTableDropdownOpen && (
+            {openDropdown === 'table' && (
               <ul className="absolute left-0 top-full w-max bg-white shadow-lg rounded-md font-body mt-3">
-                <NavLink to='/table-series' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-black font-body'}>
+                <NavLink to='/home' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-black font-body'}>
                   <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer border-b border-b-gray-300 rounded-t-md">
                     Série
                   </li>
@@ -107,7 +96,7 @@ const NavbarAdmin = () => {
                   </li>
                 </NavLink>
 
-                <NavLink to='/home' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-black font-body'}>
+                <NavLink to='/table-races' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-black font-body'}>
                   <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer rounded-b-md">
                     Závody
                   </li>
@@ -128,10 +117,10 @@ const NavbarAdmin = () => {
                   Domů
               </li>
             </NavLink>
-            <NavLink to='#' className='text-white font-body font-medium text-sm whitespace-nowrap hover:text-red-600 duration-150' onClick={toggleCreateDropdown}>
+            <NavLink to='#' className='text-white font-body font-medium text-sm whitespace-nowrap hover:text-red-600 duration-150' onClick={() => toggleDropdown('create')}>
               <li className='w-screen text-center py-2'>
-                  Vytvoření {isCreateDropdownOpen ? '▲' : '▼'}
-                {isCreateDropdownOpen && (
+                  Vytvoření {openDropdown === 'create' ? '▲' : '▼'}
+                {openDropdown === 'create' && (
                   <ul className="w-full bg-zinc-950 shadow-lg font-body mt-3">
                     <NavLink to='/create-race' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-white font-body'}>
                       <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer border-b border-b-zinc-700">
@@ -152,26 +141,20 @@ const NavbarAdmin = () => {
                     </NavLink>
 
                     <NavLink to='/create-car' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-white font-body'}>
-                      <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer border-b border-b-zinc-700 text-white">
-                        Auto
-                      </li>
-                    </NavLink>
-
-                    <NavLink to='/create-registration' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-white font-body'}>
                       <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer text-white">
-                        Registrace do závodu
+                        Auto
                       </li>
                     </NavLink>
                   </ul>
                 )}
               </li>
             </NavLink>
-            <NavLink to='#' className='text-white font-body font-medium text-sm whitespace-nowrap hover:text-red-600 duration-150' onClick={toggleTableDropdown}>
+            <NavLink to='#' className='text-white font-body font-medium text-sm whitespace-nowrap hover:text-red-600 duration-150' onClick={() => toggleDropdown('table')}>
               <li className=' w-screen text-center py-2'>
-                  Tabulky {isTableDropdownOpen ? '▲' : '▼'}
-                {isTableDropdownOpen && (
+                  Tabulky {openDropdown === 'table' ? '▲' : '▼'}
+                {openDropdown === 'table' && (
                   <ul className="w-full bg-zinc-950 shadow-lg font-body">
-                    <NavLink to='/table-series' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-white font-body'}>
+                    <NavLink to='/home' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-white font-body'}>
                       <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer border-b border-b-zinc-700 text-white mt-2">
                           Série
                       </li>
@@ -189,7 +172,7 @@ const NavbarAdmin = () => {
                       </li>
                     </NavLink>
 
-                    <NavLink to='/home' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-white font-body'}>
+                    <NavLink to='/table-races' className={({ isActive }) => isActive ? 'text-red-600 font-body' : 'text-white font-body'}>
                       <li className="px-4 py-2 hover:bg-gray-200 cursor-pointer border-b border-b-zinc-700 text-white">
                           Závody
                       </li>

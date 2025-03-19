@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import api from "../services/api";
-import { useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Drivers, Car, CarCategories } from "../utils/commonTypes";
 import { toast } from 'react-toastify';
 import CreateDriver from "../components/CreateDriverForm";
@@ -15,8 +15,8 @@ export interface SimpleRace {
 }
 
 const CreateRegistrationForm = () => {
+  const { id: eventId } = useParams<{ id: string }>();
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const navigate = useNavigate();
   const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [drivers, setDrivers] = useState<Drivers[]>([]);
   const [filteredDrivers, setFilteredDrivers] = useState<Drivers[]>([]);
@@ -32,6 +32,8 @@ const CreateRegistrationForm = () => {
   const [driverId, setDriverId] = useState<number | null>(null);
   const [carId, setCarId] = useState<number | null>(null);
   const [configurationId, setConfigurationId] = useState<number | null>(null);
+  const [power_weight_ratio, setPower_weight_ratio] = useState<number | null>(null);
+  const [categoryConfirmed, setCategoryConfirmed] = useState(false);
 
   const handleDriverCreated = (id: number) => {
     setDriverId(id);
@@ -41,17 +43,27 @@ const CreateRegistrationForm = () => {
     setCarId(id);
   };
 
-  const handleConfigurationCreated = (id: number) => {
+  const handleConfigurationCreated = (id: number, power_weight_ratio: number) => {
     setConfigurationId(id);
+    setPower_weight_ratio(power_weight_ratio);
   }
 
-  const [initialValues] = useState({
+  const [initialValues, setInitialValues] = useState({
     event_id: '',
     default_driver_id: '',
     car_id: '',
     car_category_id: '',
     car_configuration_id: '',
   });
+
+  useEffect(() => {
+    if (eventId) {
+      setInitialValues((prevValues) => ({
+        ...prevValues,
+        event_id: eventId,
+      }));
+    }
+  }, [eventId]);
 
   useEffect(() => {
     const fetchDrivers = async () => {
@@ -178,6 +190,11 @@ const CreateRegistrationForm = () => {
     validateOnChange: false,
     validateOnBlur: false,
     onSubmit: async (values) => {
+      if (!categoryConfirmed && values.car_configuration_id) {
+        setSubmitError('Musíte potvrdit, že jste zvolili správnou kategorii auta.');
+        return;
+      }
+
       try {
         const carConfigurationId = values.car_configuration_id && values.car_configuration_id !== '0' ? Number(values.car_configuration_id) : null;
 
@@ -189,7 +206,7 @@ const CreateRegistrationForm = () => {
           carConfigurationId
         );
         toast.success('Registrace byla úspěšně vytvořena!');
-        navigate('/home');
+        window.location.reload();
       } catch (error: any) {
         setSubmitError(error.response?.data?.message || 'Nepodařilo se vytvořit novou registraci.');
       }
@@ -208,6 +225,13 @@ const CreateRegistrationForm = () => {
       }
       if (!values.car_category_id) {
         errors.car_category_id = "Vyberte kategorii auta";
+      }
+      if (!categoryConfirmed && values.car_configuration_id) {
+        errors.categoryConfirmed = "Musíte potvrdit, že jste zvolili správnou kategorii auta.";
+      }
+      if (!categoryConfirmed) {
+        setSubmitError('Musíte potvrdit, že jste zvolili správnou kategorii auta.');
+        return;
       }
 
       return errors;
@@ -230,9 +254,21 @@ const CreateRegistrationForm = () => {
     if (formik.values.event_id && drivers.length > 0) {
       getRegistrationsById();
     } else {
-      setFilteredDrivers(drivers); // Reset to all drivers if no event is selected
+      setFilteredDrivers(drivers);
     }
   }, [formik.values.event_id, drivers]);
+
+  const handleDriverChange = (e : any) => {
+    const selectedDriverId = e.target.value;
+    formik.setFieldValue('default_driver_id', selectedDriverId);
+
+    const selectedCar = cars.find((car) => car.default_driver_id === Number(selectedDriverId));
+    if (selectedCar) {
+      formik.setFieldValue('car_id', selectedCar.id);
+    } else {
+      formik.setFieldValue('car_id', '');
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row w-screen pl-0 lg:pl-10 pt-0 sm:pt-10 items-center justify-center">
@@ -326,7 +362,7 @@ const CreateRegistrationForm = () => {
               <select
                 name="default_driver_id"
                 id="driver"
-                onChange={formik.handleChange}
+                onChange={handleDriverChange}
                 value={formik.values.default_driver_id}
                 className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white w-min"
                 disabled={loadingDrivers}
@@ -435,7 +471,7 @@ const CreateRegistrationForm = () => {
             ) : null}
             </div>
 
-            <div className="flex flex-col font-body my-1 custom-select mt-4 sm:mt-1 ">
+          <div className="flex flex-col font-body my-1 custom-select mt-4 sm:mt-1 ">
             <label htmlFor="car_configuration_id" className="text-black">
               Konfigurace auta
             </label>
@@ -460,11 +496,30 @@ const CreateRegistrationForm = () => {
                 Vytvořit konfiguraci
               </button>
             </div>
+            <label htmlFor="car_configuration_id" className="text-black text-md font-light">
+              {formik.values.car_configuration_id ? 'Poměr výkonu a hmotnosti: ' + power_weight_ratio : ''}
+            </label>
 
             {formik.errors.car_configuration_id ? (
               <div className="text-red-600">{formik.errors.car_configuration_id}</div>
             ) : null}
           </div>
+
+          {formik.values.car_configuration_id && (
+              <div className="flex items-center justify-center my-3 font-body font-light">
+                  <input
+                      type="checkbox"
+                      id="categoryConfirmed"
+                      name="categoryConfirmed"
+                      checked={categoryConfirmed}
+                      onChange={(e) => setCategoryConfirmed(e.target.checked)}
+                      className="mr-2"
+                  />
+                  <label htmlFor="categoryConfirmed" className="text-black">
+                      Potvrzuji, že jsem zvolil správnou kategorii auta
+                  </label>
+              </div>
+          )}
 
           <div className="flex justify-center font-body my-3">
             <button

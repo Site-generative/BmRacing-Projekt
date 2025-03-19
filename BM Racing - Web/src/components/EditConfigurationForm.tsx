@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
 import { useEffect } from "react";
 
-const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }) => {
+const EditConfigurationForm = ({ route, id, onConfigurationEdited }: { route: string, id: number|null, onConfigurationEdited: (id: number, power_weight_ratio: number) => void }) => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -28,7 +28,8 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
           rear_lights: configuration.rear_lights,
           safe: configuration.safe,
           street_legal_tires: configuration.street_legal_tires,
-          seat_seatbelt_cage: configuration.seat_seatbelt_cage,
+          seat: configuration.seat,
+          seatbelt: configuration.seatbelt,
           widebody: configuration.widebody,
           wide_tires: configuration.wide_tires,
         });
@@ -42,47 +43,46 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
   }, []);
 
   const formik = useFormik({
-    initialValues: {
+    initialValues: {      
       id: id || null,
       note: '',
       power: 0,
       weight: 0,
       power_weight_ratio: '',
-      aero_upgrade: false,
+      aero_upgrade: 0.003,
       excessive_modifications: false,
-      excessive_chamber: false,
+      excessive_chamber: '0',
       liquid_leakage: false,
       rear_lights: false,
       safe: false,
-      street_legal_tires: false,
-      seat_seatbelt_cage: false,
-      widebody: false,
-      wide_tires: false,
+      street_legal_tires: '0',
+      seat: '0',
+      seatbelt: '0',
+      widebody: '0',
+      wide_tires: '0.005',
     },
     enableReinitialize: true,
     validateOnChange: false,
     validateOnBlur: false,
     onSubmit: async (values) => {
       try {
-        await api.updateConfiguration(Number(values.id), values.note, values.power, values.weight, Number(values.power_weight_ratio), values.aero_upgrade, values.excessive_modifications, values.excessive_chamber, values.liquid_leakage, values.rear_lights, values.safe, values.street_legal_tires, values.seat_seatbelt_cage, values.widebody, values.wide_tires);
+        await api.updateConfiguration(Number(values.id), values.note, values.power, values.weight, Number(values.power_weight_ratio), Number(values.aero_upgrade), values.excessive_modifications, Number(values.excessive_chamber), values.liquid_leakage, values.rear_lights, values.safe, Number(values.street_legal_tires), Number(values.seat), Number(values.seatbelt), Number(values.widebody), Number(values.wide_tires));
 
         toast.success('Konfigurace byla úspěšně upravena!');
+        onConfigurationEdited(Number(values.id), Number(values.power_weight_ratio));
         navigate(route);
       } catch (error: any) {
         console.error('API Error:', error.response);
         if (error.response && error.response.data) {
           console.error('Response data:', error.response.data);
         }
-        setSubmitError(error.response?.data?.message || 'Nepodařilo se vytvořit nového řidiče.');
+        setSubmitError(error.response?.data?.message || 'Nepodařilo se upravit konfiguraci.');
       }
       
     },
     validate: (values) => {
       const errors: any = {};
 
-      if (!values.note) {
-        errors.note = "Vyplňte poznámku";
-      }
       if (!values.power) {
         errors.power = "Vyplňte výkon";
       }
@@ -97,8 +97,28 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
     },
   });
 
+  useEffect(() => {
+    const power = parseFloat(formik.values.power.toString());
+    const weight = parseFloat(formik.values.weight.toString());
+    const aeroUpgrade = parseFloat(formik.values.aero_upgrade.toString());
+    const excessiveChamber = parseFloat(formik.values.excessive_chamber.toString());
+    const widebody = parseFloat(formik.values.widebody.toString());
+    const streetLegalTires = parseFloat(formik.values.street_legal_tires.toString());
+    const wideTires = parseFloat(formik.values.wide_tires.toString());
+    const seat = parseFloat(formik.values.seat.toString());
+    const seatbelt = parseFloat(formik.values.seatbelt.toString());
+
+    if (!isNaN(power) && !isNaN(weight) && weight !== 0) {
+      const ratio = (((power / weight) + aeroUpgrade + excessiveChamber + widebody + streetLegalTires + wideTires + seat + seatbelt) * 1000).toFixed(1);
+        formik.setFieldValue('power_weight_ratio', ratio);
+    } else {
+        formik.setFieldValue('power_weight_ratio', '');
+    }
+    //eslint-disable-next-line
+  }, [formik.values.power, formik.values.weight, formik.values.aero_upgrade, formik.values.excessive_chamber, formik.values.widebody, formik.values.street_legal_tires, formik.values.wide_tires, formik.values.seat, formik.values.seatbelt]);
+
   return (
-    <div className="flex w-fit px-4 sm:px-0 lg:px-10 justify-center pt-2">
+<div className="flex w-fit px-4 sm:px-0 lg:px-10 justify-center pt-2">
       <div className="">
         <form onSubmit={formik.handleSubmit}>
           <div className="w-full text-center">
@@ -106,11 +126,10 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
               Úprava konfigurace
             </h1>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-10">
-            <div>
-              <div className="flex flex-col font-body my-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-2">
+          <div className="flex flex-col font-body my-1">
                 <label htmlFor="note" className="text-black">
-                  Poznámka*
+                  Poznámka
                 </label>
                 <input
                   type="text"
@@ -128,7 +147,7 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
 
               <div className="flex flex-col font-body my-1">
                 <label htmlFor="power" className="text-black">
-                  Výkon*
+                  Výkon* [kw]
                 </label>
                 <input
                   type="number"
@@ -147,7 +166,7 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
 
               <div className="flex flex-col font-body my-1">
                 <label htmlFor="weight" className="text-black">
-                  Hmotnost*
+                  Hmotnost* [kg]
                 </label>
                 <input
                   type="number"
@@ -166,16 +185,16 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
 
               <div className="flex flex-col font-body my-1">
                 <label htmlFor="power_weight_ratio" className="text-black">
-                  Poměr výkonu a hmotnosti*
+                  Poměr výkonu a hmotnosti:
                 </label>
                 <input
                   type="text"
                   id="power_weight_ratio"
                   name="power_weight_ratio"
-                  onChange={formik.handleChange}
                   value={formik.values.power_weight_ratio}
                   className="rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
-                  placeholder="např. 0.32"
+                  placeholder="0"
+                  readOnly
                 />
                 {formik.errors.power_weight_ratio ? (
                   <div className="text-red-600">{formik.errors.power_weight_ratio}</div>
@@ -183,28 +202,38 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
               </div>
 
               <div className="flex flex-col font-body my-1 custom-select">
-                <label htmlFor="aero_upgrade" className="text-black">
-                  Vylepšení aerodynamiky*
-                </label>
-                <select
-                  name="aero_upgrade"
-                  id="aero_upgrade"
-                  onChange={(e) => formik.setFieldValue('aero_upgrade', e.target.value === 'true')}
-                  value={formik.values.aero_upgrade ? 'true' : 'false'}
-                  className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
-                >
-                  <option value='true'>ANO</option>
-                  <option value='false'>NE</option>
-                </select>
-
-                {formik.errors.aero_upgrade ? (
-                  <div className="text-red-600">{formik.errors.aero_upgrade}</div>
-                ) : null}
+                  <label htmlFor="aero_upgrade" className="text-black">
+                      Vylepšení aerodynamiky* (0.003 - 0.03)
+                  </label>
+                  <input
+                      type="number"
+                      id="aero_upgrade"
+                      name="aero_upgrade"
+                      onChange={formik.handleChange}
+                      value={formik.values.aero_upgrade}
+                      className="rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
+                      placeholder="0"
+                      step="0.001"
+                      min={0.003}
+                      max={0.03}
+                      onInput={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        if (target.valueAsNumber < 0.003) {
+                            target.value = "0.003";
+                        }
+                        if (target.valueAsNumber > 0.03) {
+                            target.value = "0.03";
+                        }
+                    }}
+                  />
+                  {formik.errors.aero_upgrade ? (
+                      <div className="text-red-600">{formik.errors.aero_upgrade}</div>
+                  ) : null}
               </div>
 
               <div className="flex flex-col font-body my-1 custom-select">
                 <label htmlFor="excessive_modifications" className="text-black">
-                  Nadměrné úpravy*
+                  Prototyp / Monopost / S1+
                 </label>
                 <select
                   name="excessive_modifications"
@@ -222,25 +251,30 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
                 ) : null}
               </div>
 
-              <div className="flex flex-col font-body my-1 custom-select">
-                <label htmlFor="excessive_chamber" className="text-black">
-                  Nadměrné zakřivení*
-                </label>
-                <select
-                  name="excessive_chamber"
-                  id="excessive_chamber"
-                  onChange={(e) => formik.setFieldValue('excessive_chamber', e.target.value === 'true')}
-                  value={formik.values.excessive_chamber ? "true" : "false"}
-                  className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
-                >
-                  <option value='true'>ANO</option>
-                  <option value='false'>NE</option>
-                </select>
+            <div className="flex flex-col font-body my-1 custom-select">
+              <label htmlFor="excessive_chamber" className="text-black">
+                Nadměrné odklony*
+              </label>
+              <select
+                name="excessive_chamber"
+                id="excessive_chamber"
+                onChange={formik.handleChange}
+                value={formik.values.excessive_chamber}
+                className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
+              >
+                <option value="0">do 2°</option>
+                <option value="0.003">2,5°</option>
+                <option value="0.006">3°</option>
+                <option value="0.009">3,5°</option>
+                <option value="0.012">4°</option>
+                <option value="0.015">4,5°</option>
+                <option value="0.018">5°</option>
+                <option value="0.021">nad 5°</option>
+              </select>
 
-                {formik.errors.excessive_chamber ? (
-                  <div className="text-red-600">{formik.errors.excessive_chamber}</div>
-                ) : null}
-              </div>
+              {formik.errors.excessive_chamber ? (
+                <div className="text-red-600">{formik.errors.excessive_chamber}</div>
+              ) : null}
             </div>
             
             <div>
@@ -262,6 +296,7 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
                 {formik.errors.liquid_leakage ? (
                   <div className="text-red-600">{formik.errors.liquid_leakage}</div>
                 ) : null}
+                </div>
               </div>
 
               <div className="flex flex-col font-body my-1 custom-select">
@@ -306,17 +341,17 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
 
               <div className="flex flex-col font-body my-1 custom-select">
                 <label htmlFor="street_legal_tires" className="text-black">
-                  Legální silniční pneumatiky*
+                  Typ pneumatik*
                 </label>
                 <select
                   name="street_legal_tires"
                   id="street_legal_tires"
-                  onChange={(e) => formik.setFieldValue('street_legal_tires', e.target.value === 'true')}
-                  value={formik.values.street_legal_tires ? "true" : "false"}
+                  onChange={(e) => formik.setFieldValue('street_legal_tires', parseFloat(e.target.value))}
+                  value={formik.values.street_legal_tires}
                   className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
                 >
-                  <option value='true'>ANO</option>
-                  <option value='false'>NE</option>
+                  <option value='0.03'>ANO</option>
+                  <option value='0'>NE</option>
                 </select>
 
                 {formik.errors.street_legal_tires ? (
@@ -325,38 +360,58 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
               </div>
 
               <div className="flex flex-col font-body my-1 custom-select">
-                <label htmlFor="seat_seatbelt_cage" className="text-black">
-                  Sedadlo nebo klec na bezpečnostní pásy*
+                <label htmlFor="seat" className="text-black">
+                  Závodní sedačka*
                 </label>
                 <select
-                  name="seat_seatbelt_cage"
-                  id="seat_seatbelt_cage"
-                  onChange={(e) => formik.setFieldValue('seat_seatbelt_cage', e.target.value === 'true')}
-                  value={formik.values.seat_seatbelt_cage ? "true" : "false"}
+                  name="seat"
+                  id="seat"
+                  onChange={(e) => formik.setFieldValue('seat', parseFloat(e.target.value))}
+                  value={formik.values.seat}
                   className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
                 >
-                  <option value='true'>ANO</option>
-                  <option value='false'>NE</option>
+                  <option value='0.002'>ANO</option>
+                  <option value='0'>NE</option>
                 </select>
 
-                {formik.errors.seat_seatbelt_cage ? (
-                  <div className="text-red-600">{formik.errors.seat_seatbelt_cage}</div>
+                {formik.errors.seat ? (
+                  <div className="text-red-600">{formik.errors.seat}</div>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col font-body my-1 custom-select">
+                <label htmlFor="seatbelt" className="text-black">
+                  Vícebodové pásy*
+                </label>
+                <select
+                  name="seatbelt"
+                  id="seatbelt"
+                  onChange={(e) => formik.setFieldValue('seatbelt', parseFloat(e.target.value))}
+                  value={formik.values.seatbelt}
+                  className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
+                >
+                  <option value='0.003'>ANO</option>
+                  <option value='0'>NE</option>
+                </select>
+
+                {formik.errors.seatbelt ? (
+                  <div className="text-red-600">{formik.errors.seatbelt}</div>
                 ) : null}
               </div>
 
               <div className="flex flex-col font-body my-1 custom-select">
                 <label htmlFor="widebody" className="text-black">
-                  Rozšířená karoserie*
+                  Zvětšený rozchod náprav*
                 </label>
                 <select
                   name="widebody"
                   id="widebody"
-                  onChange={(e) => formik.setFieldValue('widebody', e.target.value === 'true')}
-                  value={formik.values.widebody ? "true" : "false"}
+                  onChange={(e) => formik.setFieldValue('widebody', parseFloat(e.target.value))}
+                  value={formik.values.widebody}
                   className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
                 >
-                  <option value='true'>ANO</option>
-                  <option value='false'>NE</option>
+                  <option value='0.01'>ANO</option>
+                  <option value='0'>NE</option>
                 </select>
 
                 {formik.errors.widebody ? (
@@ -366,40 +421,40 @@ const EditConfigurationForm = ({ route, id }: { route: string, id: number|null }
 
               <div className="flex flex-col font-body my-1 custom-select">
                 <label htmlFor="wide_tires" className="text-black">
-                  Široké pneumatiky*
+                  Širší pneumatiky*
                 </label>
                 <select
                   name="wide_tires"
                   id="wide_tires"
-                  onChange={(e) => formik.setFieldValue('wide_tires', e.target.value === 'true')}
-                  value={formik.values.wide_tires ? "true" : "false"}
+                  onChange={(e) => formik.setFieldValue('wide_tires', parseFloat(e.target.value))}
+                  value={formik.values.wide_tires}
                   className="custom-select rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
                 >
-                  <option value='true'>ANO</option>
-                  <option value='false'>NE</option>
+                  <option value='0.005'>+1cm</option>
+                  <option value='0.01'>+2cm</option>
+                  <option value='0.015'>+3cm</option>
+                  <option value='0.02'>+4cm</option>
+                  <option value='0.025'>+5cm</option>
+                  <option value='0.03'>+6cm</option>
                 </select>
 
                 {formik.errors.wide_tires ? (
                   <div className="text-red-600">{formik.errors.wide_tires}</div>
                 ) : null}
               </div>
-            </div>
           </div>
 
           <div className="flex justify-center font-body my-3 justify-items-center">
-              <button
-                type="submit"
-                className="bg-emerald-500 text-white py-1 px-8 hover:px-10 duration-100 rounded-full active:bg-emerald-700"
-              >
-                Upravit
-              </button>
-            </div>
+            <button type="submit" className="bg-emerald-500 text-white py-1 px-8 hover:px-10 duration-100 rounded-full active:bg-emerald-700">
+              Upravit
+            </button>
+          </div>
           {submitError && (
             <div className="text-red-600 text-center mt-4">{submitError}</div>
           )}
         </form>
       </div>
-      </div>
+    </div>
   );
 };
 

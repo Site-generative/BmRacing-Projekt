@@ -4,7 +4,7 @@ import NavbarAdmin from '../components/NavbarAdmin';
 import { useAuth } from '../contexts/AuthContext';
 import TableOfSeries from '../components/TableOfSeries';
 
-export default function TableSeries() {
+export default function SeriesHome() {
     const { isAuthenticated } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -18,7 +18,7 @@ export default function TableSeries() {
             <div className='w-screen h-screen flex flex-col pt-20'>
                 <div className='flex flex-col lg:flex-row justify-between px-8 items-center gap-0 xl:gap-24'>
                     <h1 className='font-body text-5xl font-medium py-8 text-center sm:text-left'>
-                        Tabulka sérií
+                        Seznam sérií
                     </h1>
                     <div className='relative'>
                         <input

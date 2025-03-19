@@ -146,16 +146,15 @@ export interface CreateConfiguration {
     wide_tires: boolean;
 }
 
-export interface EventResults {
-    driver_name: string;
-    driver_surname: string;
-    number: string;
-    phase_name: string;
-    total_time: string;
-    points: number;
+export interface EventTrainingAndQualificationResults {
     position: number;
-    category_name: string;
-    dnf: boolean;
+    points: number;
+    number: number;
+    name: string;
+    surname: string;
+    car: string;
+    car_class: string;
+    best_lap: string;
 }
 
 export interface Registrations {
@@ -164,6 +163,54 @@ export interface Registrations {
     driver_surname: string;
     car_maker: string;
     car_type: string;
-    configuration_status: string;
     car_configuration_id: number | null;
+    power_weight_ratio: number;
+    category_name: string;
+    excessive_modifications: number;
+    configuration_status: string;
 }
+
+export interface SeriesRaceResults {
+    [raceName: string]: number;
+  }
+  
+  export interface SeriesDriver {
+    driver_id: number;
+    driver_name: string;
+    race_number: string;
+    car: string;
+    category_id: number;
+    category: string;
+    races: SeriesRaceResults;
+    total_points: number;
+  }
+  
+  export interface SeriesCategory {
+    category: string;
+    drivers: SeriesDriver[];
+  }
+  
+  export type SeriesDriverResults = SeriesCategory[];
+
+  export interface LapTimeRace {
+    lap_times: string[];
+  }
+  
+  export interface DriverResultRace extends LapTimeRace {
+    position: number;
+    points: number;
+    start_number: number;
+    dnf: boolean;
+    finished: boolean;
+    driver_name: string;
+    car: string;
+    total_time: string;
+  }
+  
+  export interface RaceCategory {
+    category_id: number;
+    category_name: string;
+    results: DriverResultRace[];
+  }
+  
+  export type EventRaceResults = RaceCategory[];

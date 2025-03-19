@@ -7,7 +7,6 @@ import ErrorPage from './pages/ErrorPage';
 import Login from './pages/Login';
 import CreateRace from './pages/CreateRace';
 import EditRace from './pages/EditRace';
-import TableSeries from './pages/TableSeries';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import CreateSeries from './pages/CreateSeries';
@@ -20,6 +19,7 @@ import EditSeries from './pages/EditSeries';
 import EditDriver from './pages/EditDriver';
 import EditCar from './pages/EditCar';
 import EditRegistration from './pages/EditRegistration';
+import SeriesHome from './pages/SeriesHome';
 
 const App: React.FC = () => {
   return (
@@ -27,7 +27,7 @@ const App: React.FC = () => {
       <BrowserRouter>
         <ToastContainer 
           position="top-right" 
-          autoClose={5000} 
+          autoClose={2500} 
           hideProgressBar={false} 
           newestOnTop={false} 
           closeOnClick 
@@ -38,8 +38,10 @@ const App: React.FC = () => {
           className="custom-toast-container"
         />
         <Routes>
-          <Route index element={<Home />} />
-          <Route path="/home" element={<Home />} />
+          <Route index element={<SeriesHome />} />
+          <Route path="/home" element={<SeriesHome />} />
+          <Route path="/table-races" element={<Home />} />
+          <Route path="/table-races/:urlName" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route
             path="/create-race"
@@ -54,14 +56,6 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <EditRace />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/table-series"
-            element={
-              <ProtectedRoute>
-                <TableSeries />
               </ProtectedRoute>
             }
           />
@@ -122,7 +116,7 @@ const App: React.FC = () => {
             }
           />
           <Route
-            path="/create-registration"
+            path="/create-registration/:id"
             element={
               <ProtectedRoute>
                 <CreateRegistration />

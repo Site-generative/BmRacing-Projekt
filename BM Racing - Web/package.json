@@ -20,6 +20,7 @@
     "@types/react-dom": "^18.3.0",
     "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
+    "file-saver": "^2.0.5",
     "formik": "^2.4.6",
     "leaflet": "^1.9.4",
     "leaflet-control-geocoder": "^3.0.0",
@@ -31,7 +32,8 @@
     "react-scripts": "5.0.1",
     "react-toastify": "^10.0.5",
     "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -59,6 +61,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/file-saver": "^2.0.7",
     "@types/leaflet": "^1.9.12",
     "@types/lodash": "^4.17.7",
     "tailwindcss": "^3.4.6"

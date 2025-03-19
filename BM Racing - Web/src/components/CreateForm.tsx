@@ -6,13 +6,21 @@ import { CreateEvent, Phases, Series } from "../utils/commonTypes";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
 
-const FILE_SIZE = 1024 * 1024; // 1MB
+const FILE_SIZE = 1024 * 1024;
 const SUPPORTED_FORMATS = [
   "image/jpg",
   "image/jpeg",
   "image/webp",
   "image/png",
 ];
+
+const formatDate = (date : any) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = (`0${d.getMonth() + 1}`).slice(-2);
+  const day = (`0${d.getDate()}`).slice(-2);
+  return `${year}-${month}-${day}`;
+};
 
 const CreateForm = () => {
   const [phases, setPhases] = useState<Phases[]>([]);
@@ -43,12 +51,11 @@ const CreateForm = () => {
       try {
         const response = await api.getPhases();
   
-        // Log each item to inspect its structure
         const phasesData = Array.isArray(response.data.data) ? response.data.data.map((item: any) => {
           return {
-            id: item.id, // Adjust based on the actual structure of item
-            name: item.phase_name, // Adjust based on the actual structure of item
-            result_type: item.result_type, // Adjust based on the actual structure of item
+            id: item.id,
+            name: item.phase_name,
+            result_type: item.result_type,
           };
         }) : [];
   
@@ -128,7 +135,7 @@ const CreateForm = () => {
           )
           .then(() => {
             toast.success('Nový závod byl úspěšně vytvořen!');
-            navigate('/home');
+            navigate('/table-races');
           });
 
       } catch (error) {
@@ -250,13 +257,13 @@ const CreateForm = () => {
 
           <div className="flex flex-col font-body my-1">
             <label htmlFor="date" className="text-black">
-              Datum (RRRR-MM-DD)*
+              Datum*
             </label>
             <input
-              type="text"
+              type="date"
               id="date"
               name="date"
-              onChange={formik.handleChange}
+              onChange={(e) => formik.setFieldValue('date', formatDate(e.target.value))}
               value={formik.values.date}
               className="rounded-md border border-gray-300 font-light py-1 pl-1 pr-4 focus:outline-none focus:border focus:border-gray-300 bg-white"
               placeholder="např. 2024-08-01"

@@ -28,7 +28,7 @@ const CreateSeriesForm = () => {
         console.log('Values:', values.name, values.year);
         await api.createSeries(values.name, values.year);
         toast.success('Nová série byla úspěšně vytvořena!');
-        navigate('/table-series');
+        navigate('/home');
       } catch (error: any) {
         console.error('API Error:', error.response);
         if (error.response && error.response.data) {

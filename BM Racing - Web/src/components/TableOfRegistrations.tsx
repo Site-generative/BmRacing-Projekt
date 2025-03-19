@@ -3,33 +3,78 @@ import api from '../services/api';
 import {Registrations} from '../utils/commonTypes';
 import { NavLink } from 'react-router-dom';
 import ConfigurationInfo from './ConfigurationInfo';
+import { toast } from 'react-toastify';
 
 const TableOfRegistrations = ({ searchQuery, event_id }: { searchQuery: string; event_id: number }) => {
     const [registrations, setRegistrations] = useState<Registrations[]>([]);
     const [isConfigurationOpen, setIsConfigurationOpen] = useState(false);
-    const [selectedConfigurationID, setSelectedConfigurationID] = useState<number | null>(null);
+    const [selectedConfigurationID] = useState<number | null>(null);
+    const [sortColumn, setSortColumn] = useState('driver_surname');
+    const [sortOrder, setSortOrder] = useState('asc');
 
     useEffect(() => {
         api.getRegistrationsByEventId(event_id)
             .then((response) => {
                 const results = response.data.data as unknown as Registrations[];
 
-                setRegistrations(results);
+                const sortedData = results.sort((a, b) => {
+                    const aValue = (a.driver_surname ?? '').toLowerCase();
+                    const bValue = (b.driver_surname ?? '').toLowerCase();
+                    if (aValue < bValue) return -1;
+                    if (aValue > bValue) return 1;
+                    return 0;
+                  });
+          
+                setRegistrations(sortedData);
             })
     }, [event_id]);
+
+    const handleSort = (column: keyof Registrations) => {
+        const order = sortColumn === column && sortOrder === 'asc' ? 'desc' : 'asc';
+        setSortColumn(column);
+        setSortOrder(order);
+    
+        const sortedData = [...registrations].sort((a, b) => {
+        const aValue = (a[column] ?? '').toString().toLowerCase();
+        const bValue = (b[column] ?? '').toString().toLowerCase();
+        if (aValue < bValue) return order === 'asc' ? -1 : 1;
+        if (aValue > bValue) return order === 'asc' ? 1 : -1;
+        return 0;
+        });
+    
+        setRegistrations(sortedData);
+    };
 
     const filteredData = registrations.filter((result) =>
         result.driver_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         result.driver_surname.toLowerCase().includes(searchQuery.toLowerCase()) ||
         result.car_maker.toLowerCase().includes(searchQuery.toLowerCase()) ||
         result.car_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        result.configuration_status.toLowerCase().includes(searchQuery.toLowerCase()) 
+        result.configuration_status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        result.power_weight_ratio.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+        result.excessive_modifications.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+        result.category_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const openConfiguration = (id: number) => {
-        setSelectedConfigurationID(id);
-        setIsConfigurationOpen(true);
-    }
+    const deletePopup = (id: number) => {
+        if (window.confirm('Jste si jistý že chcete smazat tuto registraci?')) {
+            deleteRegistration(id);
+            toast.success('Registrace byla uspěšně smazána!');
+        }
+    };
+
+    const deleteRegistration = async (id: number) => {
+        try {
+          const response = await api.deleteRegistration(Number(id));
+          if (response.status === 200 || response.status === 204) {
+            setRegistrations((prevRegistrations) =>
+              prevRegistrations.filter((registration) => registration.event_registration_id !== id)
+            );
+          }
+        } catch (error) {
+          console.error('Error deleting registration', error);
+        }
+      };
 
     return (
         <div className="px-4 h-3/4 sm:h-full">
@@ -53,11 +98,30 @@ const TableOfRegistrations = ({ searchQuery, event_id }: { searchQuery: string; 
                 <table className="w-full table-auto border-separate font-body" style={{ borderSpacing: '0 3px' }}>
                     <thead className="bg-red-600">
                         <tr>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-lg">Jméno</th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Příjmení</th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Výrobce auta</th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Model auta</th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Status konfigurace</th>
+                            <th className={`px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-lg cursor-pointer ${sortColumn === 'driver_name' ? 'bg-red-700' : ''}`} onClick={() => handleSort('driver_name')}>
+                            Jméno {sortColumn === 'driver_name' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer ${sortColumn === 'driver_surname' ? 'bg-red-700' : ''}`} onClick={() => handleSort('driver_surname')}>
+                            Příjmení {sortColumn === 'driver_surname' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer ${sortColumn === 'car_maker' ? 'bg-red-700' : ''}`} onClick={() => handleSort('car_maker')}>
+                            Výrobce auta {sortColumn === 'car_maker' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer ${sortColumn === 'car_type' ? 'bg-red-700' : ''}`} onClick={() => handleSort('car_type')}>
+                            Model auta {sortColumn === 'car_type' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer ${sortColumn === 'configuration_status' ? 'bg-red-700' : ''}`} onClick={() => handleSort('configuration_status')}>
+                            Status konfigurace {sortColumn === 'configuration_status' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer ${sortColumn === 'category_name' ? 'bg-red-700' : ''}`} onClick={() => handleSort('category_name')}>
+                            Kategorie {sortColumn === 'category_name' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer ${sortColumn === 'power_weight_ratio' ? 'bg-red-700' : ''}`} onClick={() => handleSort('power_weight_ratio')}>
+                            Poměr výkon/váha {sortColumn === 'power_weight_ratio' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className={`px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer ${sortColumn === 'excessive_modifications' ? 'bg-red-700' : ''}`} onClick={() => handleSort('excessive_modifications')}>
+                            Nadměrné úpravy {sortColumn === 'excessive_modifications' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
                             <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider"></th>
                             <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tr-lg"></th>
                         </tr>
@@ -70,25 +134,21 @@ const TableOfRegistrations = ({ searchQuery, event_id }: { searchQuery: string; 
                         ) : (
                             filteredData.map((result, index) => (
                                 <tr key={index} className='bg-zinc-800 text-white'>
-                                    <td className="px-6 py-2 whitespace-nowrap">{result.driver_name}</td>
-                                    <td className="px-6 py-2 whitespace-nowrap">{result.driver_surname}</td>
-                                    <td className="px-6 py-2 whitespace-nowrap">{result.car_maker}</td>
-                                    <td className="px-6 py-2 whitespace-nowrap">{result.car_type}</td>
-                                    <td className="px-6 py-2 whitespace-nowrap">{result.configuration_status}</td>
+                                    <td className={`px-6 py-2 whitespace-nowrap ${sortColumn === 'driver_name' ? 'bg-zinc-900' : ''}`}>{result.driver_name}</td>
+                                    <td className={`px-6 py-2 whitespace-nowrap ${sortColumn === 'driver_surname' ? 'bg-zinc-900' : ''}`}>{result.driver_surname}</td>
+                                    <td className={`px-6 py-2 whitespace-nowrap ${sortColumn === 'car_maker' ? 'bg-zinc-900' : ''}`}>{result.car_maker}</td>
+                                    <td className={`px-6 py-2 whitespace-nowrap ${sortColumn === 'car_type' ? 'bg-zinc-900' : ''}`}>{result.car_type}</td>
+                                    <td className={`px-6 py-2 whitespace-nowrap ${sortColumn === 'configuration_status' ? 'bg-zinc-900' : ''}`}>{result.configuration_status}</td>
+                                    <td className={`px-6 py-2 whitespace-nowrap ${sortColumn === 'category_name' ? 'bg-zinc-900' : ''}`}>{result.category_name}</td>
+                                    <td className={`px-6 py-2 whitespace-nowrap ${sortColumn === 'power_weight_ratio' ? 'bg-zinc-900' : ''}`}>{result.power_weight_ratio}</td>
+                                    <td className={`px-6 py-2 whitespace-nowrap ${sortColumn === 'excessive_modifications' ? 'bg-zinc-900' : ''}`}>{result.excessive_modifications}</td>
                                     <td className="px-6 py-2 whitespace-nowrap">
-                                        <button 
-                                            className={`rounded-full px-4 py-1 duration-100 ${result.car_configuration_id ? 'bg-orange-400 hover:bg-orange-500 active:bg-orange-700' : 'bg-gray-400 cursor-not-allowed'}`} 
-                                            id={result.car_configuration_id?.toString()} 
-                                            onClick={() => result.car_configuration_id && openConfiguration(result.car_configuration_id)}
-                                            disabled={!result.car_configuration_id}
-                                        >
-                                            Zobrazit konfiguraci
-                                        </button>
+                                    <NavLink to={`/edit-registration/${result.event_registration_id}`}>
+                                        <button className='bg-green-400 rounded-full px-4 py-1 hover:bg-green-500 duration-100 active:bg-green-700' id={result.event_registration_id.toString()}>Upravit</button>
+                                    </NavLink>
                                     </td>
                                     <td className="px-6 py-2 whitespace-nowrap">
-                                        <NavLink to={`/edit-registration/${result.event_registration_id}`}>
-                                            <button className='bg-green-400 rounded-full px-4 py-1 hover:bg-green-500 duration-100 active:bg-green-700' id={result.event_registration_id.toString()}>Upravit</button>
-                                        </NavLink>
+                                        <button className='bg-red-600 rounded-full px-4 py-1 hover:bg-red-700 duration-100 active:bg-red-800' id={result.event_registration_id.toString()} onClick={() => deletePopup(result.event_registration_id)}>Smazat</button>
                                     </td>
                                 </tr>
                             ))

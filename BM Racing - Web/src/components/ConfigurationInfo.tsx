@@ -39,7 +39,7 @@ const ConfigurationInfo = ({ id }: ConfigurationInfoProps) => {
         </div>
         <div className="mb-2">
             <h2 className="text-lg font-semibold">Výkon:</h2>
-            <p className="text-gray-700">{configurationData.power}</p>
+            <p className="text-gray-700">{configurationData.power} kw</p>
         </div>
         <div className="mb-2">
             <h2 className="text-lg font-semibold">Hmotnost:</h2>
@@ -58,7 +58,7 @@ const ConfigurationInfo = ({ id }: ConfigurationInfoProps) => {
             <p className="text-gray-700">{configurationData.excessive_modifications ? 'ANO' : 'NE'}</p>
         </div>
         <div className="mb-2">
-            <h2 className="text-lg font-semibold">Nadměrné zakřivení:</h2>
+            <h2 className="text-lg font-semibold">Nadměrné odklony:</h2>
             <p className="text-gray-700">{configurationData.excessive_chamber ? 'ANO' : 'NE'}</p>
         </div>
         <div className="mb-2">

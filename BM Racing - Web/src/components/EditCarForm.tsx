@@ -188,7 +188,7 @@ const EditCarForm = () => {
               ) : (
                 drivers.map((driver) => (
                   <option key={driver.id} value={driver.id}>
-                    {driver.name} {driver.surname} | {driver.number} | {driver.id}
+                    {driver.name} {driver.surname} | {driver.number}
                   </option>
                 ))
               )}
